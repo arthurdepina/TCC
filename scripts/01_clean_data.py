@@ -138,6 +138,9 @@ def clean_metadata(df: pd.DataFrame) -> pd.DataFrame:
         "Neurologia e Psiquiatria",
         "Rossandro Klinjey",
         "PodPeople - Ana Beatriz Barbosa",
+        "Augusto Cury",
+        "Minutos Psíquicos",
+        "Casa do Saber",
     }
     df["channel_type"] = df["channelTitle"].apply(
         lambda ch: "profissional" if ch in profissional_channels else "amador"

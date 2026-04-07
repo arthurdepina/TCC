@@ -5,7 +5,11 @@
       "Bash(pip install:*)",
       "Bash(python -c \"import sys; sys.stdout.buffer.write\\(sys.stdin.buffer.read\\(\\)\\)\")",
       "Bash(python scripts/01_clean_data.py)",
-      "Bash(python scripts/02_preprocess_text.py)"
+      "Bash(python scripts/02_preprocess_text.py)",
+      "WebSearch",
+      "Bash(python scripts/03_llm_label.py --limit 5)",
+      "Bash(python scripts/03_llm_label.py --limit 21186)",
+      "Bash(python -c ':*)"
     ]
   }
 }
