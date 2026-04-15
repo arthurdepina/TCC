@@ -9,7 +9,8 @@
       "WebSearch",
       "Bash(python scripts/03_llm_label.py --limit 5)",
       "Bash(python scripts/03_llm_label.py --limit 21186)",
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "Bash(python scripts/04_sample_for_review.py)"
     ]
   }
 }
