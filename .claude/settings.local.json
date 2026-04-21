@@ -10,7 +10,13 @@
       "Bash(python scripts/03_llm_label.py --limit 5)",
       "Bash(python scripts/03_llm_label.py --limit 21186)",
       "Bash(python -c ':*)",
-      "Bash(python scripts/04_sample_for_review.py)"
+      "Bash(python scripts/04_sample_for_review.py)",
+      "Bash(mv data/processed/llm_labeled_comments.csv data/processed/llm_labeled_comments_DISCARDED.csv)",
+      "Bash(rm -f data/processed/llm_checkpoint.json)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/03_llm_label.py --limit 21186)",
+      "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 5)",
+      "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 21186)",
+      "Bash(python -c ' *)"
     ]
   }
 }

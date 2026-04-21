@@ -13,8 +13,8 @@ Entrada:
     data/processed/preprocessed_comments.csv
 
 Saídas:
-    data/processed/llm_labeled_comments.csv   — resultado acumulado
-    data/processed/llm_checkpoint.json        — progresso salvo
+    data/processed/llm_labeled_comments_v2.csv   — resultado acumulado
+    data/processed/llm_checkpoint_v2.json         — progresso salvo
 
 Uso:
     # Metade do dataset (~21k comentários):
@@ -35,7 +35,6 @@ import sys
 import json
 import time
 import argparse
-import io
 from pathlib import Path
 
 import pandas as pd
@@ -55,15 +54,17 @@ USD_TO_BRL    = 5.80               # taxa aproximada; ajuste se necessário
 MAX_COST_BRL  = 40.0               # limite de custo em R$
 WARN_THRESHOLD = 0.90              # avisa ao atingir 90% do limite
 
-MAX_RETRIES   = 3                  # tentativas por lote em caso de erro de API
-RETRY_WAIT    = 5                  # segundos entre tentativas
+MAX_RETRIES      = 4               # tentativas por lote em caso de erro de API
+RETRY_WAIT       = 5               # segundos entre tentativas normais
+RATE_LIMIT_WAIT  = 65              # segundos ao atingir rate limit (espera 1 min+)
+BATCH_DELAY      = 2.5             # pausa entre lotes para respeitar 50k tokens/min
 
 # ─── Caminhos ────────────────────────────────────────────────────────────────
 
 ROOT        = Path(__file__).parent.parent
 INPUT_CSV   = ROOT / "data" / "processed" / "preprocessed_comments.csv"
-OUTPUT_CSV  = ROOT / "data" / "processed" / "llm_labeled_comments.csv"
-CHECKPOINT  = ROOT / "data" / "processed" / "llm_checkpoint.json"
+OUTPUT_CSV  = ROOT / "data" / "processed" / "llm_labeled_comments_v2.csv"
+CHECKPOINT  = ROOT / "data" / "processed" / "llm_checkpoint_v2.json"
 
 # ─── Prompt ───────────────────────────────────────────────────────────────────
 
@@ -72,37 +73,47 @@ Você é um especialista em análise de sentimentos aplicada a saúde mental.
 Sua tarefa é classificar comentários de vídeos do YouTube sobre saúde mental
 e bem-estar no Brasil.
 
-Classifique cada comentário em UMA das três categorias:
-- POSITIVO: expressa emoção positiva em relação ao conteúdo do vídeo
-  (gratidão, alívio, identificação, esperança, apoio, elogio ao criador)
-- NEGATIVO: expressa emoção negativa em relação ao conteúdo do vídeo
-  (tristeza, angústia, crítica, discordância forte, desconforto, sofrimento)
-- DESCARTAVEL: não expressa sentimento emocional claro sobre o conteúdo
-  (perguntas factuais, spam, propaganda, timestamps, emojis ambíguos)
+Classifique cada comentário em UMA das quatro categorias:
+- POSITIVO: expressa reação emocional positiva DIRECIONADA AO VÍDEO ou ao criador
+  (gratidão pelo vídeo, alívio após assistir, elogio ao conteúdo ou criador,
+  identificação positiva com a abordagem, esperança gerada pelo vídeo)
+- NEGATIVO: expressa reação emocional negativa DIRECIONADA AO VÍDEO ou ao criador
+  (crítica ao conteúdo, discordância da abordagem, o vídeo gerou desconforto,
+  o criador foi questionado, o conteúdo foi considerado inadequado ou perigoso)
+- VIVENCIAL: relato ou experiência pessoal compartilhada em resposta ao tema,
+  SEM ser uma reação direta ao vídeo em si
+  (desabafo sobre a própria vida, história pessoal sobre o tema abordado,
+  opinião sobre o assunto do vídeo sem julgar o vídeo, relato de terceiros)
+- DESCARTAVEL: não expressa sentimento emocional relevante
+  (perguntas factuais, spam, propaganda, timestamps, emojis ambíguos isolados)
 
-Regras:
-- Sentimento misto: use o dominante ou o da última oração
-- Ironia/sarcasmo: classifique pelo sentimento real, não pelo superficial
-- Emoção sobre a própria situação de vida: classifique como NEGATIVO
-  (o conteúdo ativou essa emoção)
+Regra principal: pergunte-se "a pessoa está reagindo ao VÍDEO ou falando sobre
+a PRÓPRIA VIDA/TEMA?" — se for sobre o vídeo, use POSITIVO ou NEGATIVO;
+se for sobre a própria vida ou o tema em geral, use VIVENCIAL.
+
+Outras regras:
+- Sentimento misto direcionado ao vídeo: use o dominante
+- Ironia/sarcasmo sobre o vídeo: classifique pelo sentimento real
 - Emojis de coração isolados (💛💜💙❤): POSITIVO
 - Emojis ambíguos isolados (👀🤔): DESCARTAVEL
 
 Responda APENAS com um array JSON contendo exatamente N strings, uma por
-comentário, na mesma ordem. Exemplo para 3 comentários:
-["POSITIVO", "NEGATIVO", "DESCARTAVEL"]
+comentário, na mesma ordem. Exemplo para 4 comentários:
+["POSITIVO", "NEGATIVO", "VIVENCIAL", "DESCARTAVEL"]
 """
 
 FEW_SHOT_USER = """\
-Classifique estes 6 comentários:
+Classifique estes 8 comentários:
 1. Esse vídeo me fez chorar de alívio. Obrigada por falar sobre isso 💛
 2. Discordo completamente. Isso é uma simplificação perigosa da depressão.
 3. Qual o nome do livro que você mencionou aos 3:45?
-4. Não consigo nem terminar de assistir porque me traz muitas memórias ruins
+4. Passei por um relacionamento abusivo e ainda estou tentando me recuperar.
 5. Finalmente alguém explicando isso de forma acessível!
-6. 👀"""
+6. 👀
+7. Minha filha tem ansiedade severa há três anos e nenhum médico consegue ajudar.
+8. Esse canal devia ser banido, espalha desinformação."""
 
-FEW_SHOT_ASSISTANT = '["POSITIVO", "NEGATIVO", "DESCARTAVEL", "NEGATIVO", "POSITIVO", "DESCARTAVEL"]'
+FEW_SHOT_ASSISTANT = '["POSITIVO", "NEGATIVO", "DESCARTAVEL", "VIVENCIAL", "POSITIVO", "DESCARTAVEL", "VIVENCIAL", "NEGATIVO"]'
 
 # ─── Rastreamento de custo ─────────────────────────────────────────────────────
 
@@ -186,7 +197,7 @@ def label_batch(client: anthropic.Anthropic, texts: list[str]) -> list[str]:
             labels = json.loads(raw[start:end])
 
             # Valida comprimento e valores
-            valid = {"POSITIVO", "NEGATIVO", "DESCARTAVEL"}
+            valid = {"POSITIVO", "NEGATIVO", "VIVENCIAL", "DESCARTAVEL"}
             if len(labels) != len(texts):
                 raise ValueError(
                     f"Esperado {len(texts)} labels, recebido {len(labels)}"
@@ -198,7 +209,14 @@ def label_batch(client: anthropic.Anthropic, texts: list[str]) -> list[str]:
 
             return labels, response.usage
 
-        except (anthropic.APIError, anthropic.RateLimitError) as e:
+        except anthropic.RateLimitError as e:
+            print(f"    [Rate limit tentativa {attempt}/{MAX_RETRIES}]: aguardando {RATE_LIMIT_WAIT}s...")
+            if attempt < MAX_RETRIES:
+                time.sleep(RATE_LIMIT_WAIT)
+            else:
+                raise
+
+        except anthropic.APIError as e:
             print(f"    [API erro tentativa {attempt}/{MAX_RETRIES}]: {e}")
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_WAIT * attempt)
@@ -219,7 +237,9 @@ def label_batch(client: anthropic.Anthropic, texts: list[str]) -> list[str]:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    # Garante UTF-8 no terminal Windows sem redirecionar stdout globalmente
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Rotula comentários via Claude Haiku")
     parser.add_argument(
@@ -298,6 +318,7 @@ def main():
 
         labels, usage = label_batch(client, batch_texts)
         tracker.add(usage)
+        time.sleep(BATCH_DELAY)  # respeita limite de 50k tokens/min
 
         for cid, label in zip(batch_ids, labels):
             results.append({"commentId": cid, "label_llm": label})
@@ -322,7 +343,7 @@ def main():
         print("  Rode o script novamente para continuar (checkpoint ativo).")
     else:
         print("\n  Todos os comentarios foram rotulados!")
-        print("  Proximo passo: python scripts/04_build_dataset.py")
+        print("  Proximo passo: python scripts/05_build_dataset.py")
 
 
 if __name__ == "__main__":

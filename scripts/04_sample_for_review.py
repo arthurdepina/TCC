@@ -39,7 +39,7 @@ import numpy as np
 # ─── Caminhos ────────────────────────────────────────────────────────────────
 
 ROOT        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LABELS_CSV  = os.path.join(ROOT, "data", "processed", "llm_labeled_comments.csv")
+LABELS_CSV  = os.path.join(ROOT, "data", "processed", "llm_labeled_comments_v2.csv")
 COMMENTS_CSV= os.path.join(ROOT, "data", "processed", "preprocessed_comments.csv")
 OUT_ARTHUR  = os.path.join(ROOT, "data", "processed", "para_revisao_arthur.csv")
 OUT_ANA     = os.path.join(ROOT, "data", "processed", "para_revisao_ana.csv")
@@ -130,5 +130,5 @@ print(result["label_llm"].value_counts().to_string())
 print("\nDistribuicao channel_type no conjunto de revisao:")
 print(result["channel_type"].value_counts().to_string())
 print("\nInstrucoes:")
-print("  Preencha a coluna 'label_revisao' com: POSITIVO, NEGATIVO ou DESCARTAVEL")
+print("  Preencha a coluna 'label_revisao' com: POSITIVO, NEGATIVO, VIVENCIAL ou DESCARTAVEL")
 print("  Deixe em branco se concordar com o label_llm (so corrija o que discordar)")
