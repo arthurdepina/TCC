@@ -11,14 +11,16 @@ Estratégia de amostragem — por que não aleatório puro?
   e atenção especial aos casos que mais importam revisar.
 
 Critérios de seleção (600 total):
-  1. Casos de alta relevância por engajamento (likeCount > 50): 100
+  1. Alta relevância por engajamento (likeCount > 50), exceto DESCARTAVEL: 80
      — Comentários muito curtidos têm mais peso analítico no TCC.
-  2. Amostra estratificada por label × channel_type: 400
-     — 4 grupos (POSITIVO/NEGATIVO × profissional/amador), 100 cada.
-     — DESCARTAVEL não precisa de revisão humana intensa.
-  3. Comentários muito curtos com label POSITIVO ou NEGATIVO: 100
-     — Textos < 15 chars são mais ambíguos (ex: "Amei", "Horrível").
-     — Mais propensos a erro do modelo.
+     — NEGATIVO tem apenas 2 comentários com likes > 50, por isso não tem grupo próprio aqui.
+  2. Amostra estratificada POSITIVO × channel_type: 80 + 80
+  3. Amostra estratificada VIVENCIAL × channel_type: 80 + 80
+     — VIVENCIAL é um label novo que merece validação humana cuidadosa.
+  4. NEGATIVO (todos os tipos de canal juntos): 100
+     — Só 709 no total; agrupamos para garantir representação.
+  5. Comentários muito curtos (< 15 chars) com label substantivo: 100
+     — Mais ambíguos e propensos a erro do modelo.
 
 Os 600 são embaralhados e divididos aleatoriamente em dois arquivos de 300.
 
@@ -75,30 +77,38 @@ def add_sample(pool: pd.DataFrame, n: int, label: str) -> None:
     print(f"  [{label}] {n} comentarios selecionados")
 
 
-# 1. Alta relevância (likeCount > 50), apenas POSITIVO e NEGATIVO
-high_like = df[(df["likeCount"] > 50) & (df["label_llm"].isin(["POSITIVO", "NEGATIVO"]))]
-add_sample(high_like, 100, "Alta relevancia (likes > 50)")
+# 1. Alta relevância (likeCount > 50), exceto DESCARTAVEL
+# NEGATIVO tem só 2 comentários com likes > 50, então agrupa tudo
+high_like = df[
+    (df["likeCount"] > 50) &
+    (df["label_llm"].isin(["POSITIVO", "VIVENCIAL", "NEGATIVO"]))
+]
+add_sample(high_like, 80, "Alta relevancia (likes > 50)")
 
-# 2. Amostra estratificada: POSITIVO × profissional
+# 2. POSITIVO × profissional
 pos_prof = df[(df["label_llm"] == "POSITIVO") & (df["channel_type"] == "profissional")]
-add_sample(pos_prof, 100, "POSITIVO x profissional")
+add_sample(pos_prof, 80, "POSITIVO x profissional")
 
-# 3. Amostra estratificada: POSITIVO × amador
+# 3. POSITIVO × amador
 pos_am = df[(df["label_llm"] == "POSITIVO") & (df["channel_type"] == "amador")]
-add_sample(pos_am, 100, "POSITIVO x amador")
+add_sample(pos_am, 80, "POSITIVO x amador")
 
-# 4. Amostra estratificada: NEGATIVO × profissional
-neg_prof = df[(df["label_llm"] == "NEGATIVO") & (df["channel_type"] == "profissional")]
-add_sample(neg_prof, 100, "NEGATIVO x profissional")
+# 4. VIVENCIAL × profissional
+viv_prof = df[(df["label_llm"] == "VIVENCIAL") & (df["channel_type"] == "profissional")]
+add_sample(viv_prof, 80, "VIVENCIAL x profissional")
 
-# 5. Amostra estratificada: NEGATIVO × amador
-neg_am = df[(df["label_llm"] == "NEGATIVO") & (df["channel_type"] == "amador")]
-add_sample(neg_am, 100, "NEGATIVO x amador")
+# 5. VIVENCIAL × amador
+viv_am = df[(df["label_llm"] == "VIVENCIAL") & (df["channel_type"] == "amador")]
+add_sample(viv_am, 80, "VIVENCIAL x amador")
 
-# 6. Comentários curtos (< 15 chars) com label POSITIVO ou NEGATIVO
+# 6. NEGATIVO (todos os canais juntos — só 709 no total)
+neg_all = df[df["label_llm"] == "NEGATIVO"]
+add_sample(neg_all, 100, "NEGATIVO (todos os canais)")
+
+# 7. Comentários curtos (< 15 chars) com label substantivo
 short = df[
     (df["text_length"] < 15) &
-    (df["label_llm"].isin(["POSITIVO", "NEGATIVO"])) &
+    (df["label_llm"].isin(["POSITIVO", "NEGATIVO", "VIVENCIAL"])) &
     (~df["commentId"].isin(selected_ids))
 ]
 add_sample(short, 100, "Curtos (< 15 chars)")

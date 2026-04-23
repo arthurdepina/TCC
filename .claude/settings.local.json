@@ -16,7 +16,8 @@
       "Bash(PYTHONIOENCODING=utf-8 python scripts/03_llm_label.py --limit 21186)",
       "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 5)",
       "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 21186)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/04_sample_for_review.py)"
     ]
   }
 }
