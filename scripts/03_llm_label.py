@@ -13,8 +13,8 @@ Entrada:
     data/processed/preprocessed_comments.csv
 
 Saídas:
-    data/processed/llm_labeled_comments_v2.csv   — resultado acumulado
-    data/processed/llm_checkpoint_v2.json         — progresso salvo
+    data/processed/llm_labeled_comments_v3.csv   — resultado acumulado
+    data/processed/llm_checkpoint_v3.json         — progresso salvo
 
 Uso:
     # Metade do dataset (~21k comentários):
@@ -63,8 +63,8 @@ BATCH_DELAY      = 2.5             # pausa entre lotes para respeitar 50k tokens
 
 ROOT        = Path(__file__).parent.parent
 INPUT_CSV   = ROOT / "data" / "processed" / "preprocessed_comments.csv"
-OUTPUT_CSV  = ROOT / "data" / "processed" / "llm_labeled_comments_v2.csv"
-CHECKPOINT  = ROOT / "data" / "processed" / "llm_checkpoint_v2.json"
+OUTPUT_CSV  = ROOT / "data" / "processed" / "llm_labeled_comments_v3.csv"
+CHECKPOINT  = ROOT / "data" / "processed" / "llm_checkpoint_v3.json"
 
 # ─── Prompt ───────────────────────────────────────────────────────────────────
 
@@ -73,23 +73,28 @@ Você é um especialista em análise de sentimentos aplicada a saúde mental.
 Sua tarefa é classificar comentários de vídeos do YouTube sobre saúde mental
 e bem-estar no Brasil.
 
+Cada item inclui o TÍTULO DO VÍDEO seguido do COMENTÁRIO. Use o título para
+entender o contexto e determinar se o comentário é uma reação ao vídeo ou
+uma reação ao tema/assunto abordado.
+
 Classifique cada comentário em UMA das quatro categorias:
-- POSITIVO: expressa reação emocional positiva DIRECIONADA AO VÍDEO ou ao criador
+- POSITIVO: reação emocional positiva DIRECIONADA AO VÍDEO ou ao criador
   (gratidão pelo vídeo, alívio após assistir, elogio ao conteúdo ou criador,
   identificação positiva com a abordagem, esperança gerada pelo vídeo)
-- NEGATIVO: expressa reação emocional negativa DIRECIONADA AO VÍDEO ou ao criador
-  (crítica ao conteúdo, discordância da abordagem, o vídeo gerou desconforto,
+- NEGATIVO: reação emocional negativa DIRECIONADA AO VÍDEO ou ao criador
+  (crítica ao conteúdo, discordância da abordagem, o vídeo causou desconforto,
   o criador foi questionado, o conteúdo foi considerado inadequado ou perigoso)
-- VIVENCIAL: relato ou experiência pessoal compartilhada em resposta ao tema,
-  SEM ser uma reação direta ao vídeo em si
-  (desabafo sobre a própria vida, história pessoal sobre o tema abordado,
-  opinião sobre o assunto do vídeo sem julgar o vídeo, relato de terceiros)
-- DESCARTAVEL: não expressa sentimento emocional relevante
+- TANGENCIAL: comentário que tangencia o vídeo sem ser uma reação direta a ele
+  (relato ou desabafo pessoal sobre a própria vida, reação/opinião sobre o TEMA
+  ou assunto do vídeo — não sobre o vídeo em si, reação a eventos/pessoas
+  mencionados no vídeo, história de terceiros relacionada ao tema)
+- DESCARTAVEL: sem sentimento emocional relevante sobre o vídeo ou tema
   (perguntas factuais, spam, propaganda, timestamps, emojis ambíguos isolados)
 
-Regra principal: pergunte-se "a pessoa está reagindo ao VÍDEO ou falando sobre
-a PRÓPRIA VIDA/TEMA?" — se for sobre o vídeo, use POSITIVO ou NEGATIVO;
-se for sobre a própria vida ou o tema em geral, use VIVENCIAL.
+Regra principal: o título do vídeo é a chave. Pergunte-se: "a pessoa está
+reagindo ao VÍDEO ou ao TEMA/ASSUNTO do vídeo?"
+— Reação ao vídeo → POSITIVO ou NEGATIVO
+— Reação ao tema, ao assunto, ou à própria vida → TANGENCIAL
 
 Outras regras:
 - Sentimento misto direcionado ao vídeo: use o dominante
@@ -99,21 +104,29 @@ Outras regras:
 
 Responda APENAS com um array JSON contendo exatamente N strings, uma por
 comentário, na mesma ordem. Exemplo para 4 comentários:
-["POSITIVO", "NEGATIVO", "VIVENCIAL", "DESCARTAVEL"]
+["POSITIVO", "NEGATIVO", "TANGENCIAL", "DESCARTAVEL"]
 """
 
 FEW_SHOT_USER = """\
 Classifique estes 8 comentários:
-1. Esse vídeo me fez chorar de alívio. Obrigada por falar sobre isso 💛
-2. Discordo completamente. Isso é uma simplificação perigosa da depressão.
-3. Qual o nome do livro que você mencionou aos 3:45?
-4. Passei por um relacionamento abusivo e ainda estou tentando me recuperar.
-5. Finalmente alguém explicando isso de forma acessível!
-6. 👀
-7. Minha filha tem ansiedade severa há três anos e nenhum médico consegue ajudar.
-8. Esse canal devia ser banido, espalha desinformação."""
+1. [Vídeo: "Como lidar com ansiedade | Maria Homem"]
+   Esse vídeo me fez chorar de alívio. Obrigada por falar sobre isso 💛
+2. [Vídeo: "Terapia funciona? | Minutos Psíquicos"]
+   Discordo completamente. Isso é uma simplificação perigosa da depressão.
+3. [Vídeo: "Autocuidado na prática | Rossandro Klinjey"]
+   Qual o nome do livro que você mencionou aos 3:45?
+4. [Vídeo: "Superando o trauma | PodPeople - Ana Beatriz Barbosa"]
+   Passei por um relacionamento abusivo e ainda estou tentando me recuperar.
+5. [Vídeo: "Inteligência emocional | Leandro Karnal"]
+   Finalmente alguém explicando isso de forma acessível!
+6. [Vídeo: "Depressão pós-parto | ellora"]
+   👀
+7. [Vídeo: "Caso do Piloto Preso Por Chefiar Uma Rede Criminosa | Ana Beatriz"]
+   Monstros!!!!! Quem está por trás desses, monstros???? Isso me deixa arrasada 😭😭😭
+8. [Vídeo: "Saúde mental no trabalho | Augusto Cury"]
+   Esse canal devia ser banido, espalha desinformação."""
 
-FEW_SHOT_ASSISTANT = '["POSITIVO", "NEGATIVO", "DESCARTAVEL", "VIVENCIAL", "POSITIVO", "DESCARTAVEL", "VIVENCIAL", "NEGATIVO"]'
+FEW_SHOT_ASSISTANT = '["POSITIVO", "NEGATIVO", "DESCARTAVEL", "TANGENCIAL", "POSITIVO", "DESCARTAVEL", "TANGENCIAL", "NEGATIVO"]'
 
 # ─── Rastreamento de custo ─────────────────────────────────────────────────────
 
@@ -166,13 +179,16 @@ def save_checkpoint(labeled_ids: set) -> None:
 
 # ─── Rotulação via API ────────────────────────────────────────────────────────
 
-def label_batch(client: anthropic.Anthropic, texts: list[str]) -> list[str]:
+def label_batch(client: anthropic.Anthropic, texts: list[str], titles: list[str]) -> list[str]:
     """
     Envia um lote de textos para o Claude e retorna lista de rótulos.
     Tenta até MAX_RETRIES vezes em caso de falha de parsing ou erro de API.
     """
-    numbered = "\n".join(f"{i+1}. {t}" for i, t in enumerate(texts))
-    user_msg = f"Classifique estes {len(texts)} comentários:\n{numbered}"
+    items = "\n".join(
+        f'{i+1}. [Vídeo: "{titles[i]}"]\n   {texts[i]}'
+        for i in range(len(texts))
+    )
+    user_msg = f"Classifique estes {len(texts)} comentários:\n{items}"
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -197,7 +213,7 @@ def label_batch(client: anthropic.Anthropic, texts: list[str]) -> list[str]:
             labels = json.loads(raw[start:end])
 
             # Valida comprimento e valores
-            valid = {"POSITIVO", "NEGATIVO", "VIVENCIAL", "DESCARTAVEL"}
+            valid = {"POSITIVO", "NEGATIVO", "TANGENCIAL", "DESCARTAVEL"}
             if len(labels) != len(texts):
                 raise ValueError(
                     f"Esperado {len(texts)} labels, recebido {len(labels)}"
@@ -296,6 +312,7 @@ def main():
 
     # Processa em lotes
     texts  = df_pending["text_clean"].fillna("").tolist()
+    titles = df_pending["video_title"].fillna("").tolist()
     ids    = df_pending["commentId"].tolist()
     n_batches = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
 
@@ -304,8 +321,9 @@ def main():
     for batch_idx in range(n_batches):
         start = batch_idx * BATCH_SIZE
         end   = min(start + BATCH_SIZE, len(texts))
-        batch_texts = texts[start:end]
-        batch_ids   = ids[start:end]
+        batch_texts  = texts[start:end]
+        batch_titles = titles[start:end]
+        batch_ids    = ids[start:end]
 
         # Limite de custo
         if tracker.limit_reached():
@@ -316,7 +334,7 @@ def main():
         if tracker.should_warn():
             print(f"  AVISO: {tracker.status()}")
 
-        labels, usage = label_batch(client, batch_texts)
+        labels, usage = label_batch(client, batch_texts, batch_titles)
         tracker.add(usage)
         time.sleep(BATCH_DELAY)  # respeita limite de 50k tokens/min
 

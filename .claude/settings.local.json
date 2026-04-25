@@ -17,7 +17,9 @@
       "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 5)",
       "Bash(PYTHONIOENCODING=utf-8 python -u scripts/03_llm_label.py --limit 21186)",
       "Bash(python -c ' *)",
-      "Bash(PYTHONIOENCODING=utf-8 python scripts/04_sample_for_review.py)"
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/04_sample_for_review.py)",
+      "Bash(python -c \"import pandas as pd; df = pd.read_csv\\('c:/Users/arthu/Documents/GitHub/TCC/data/processed/preprocessed_comments.csv', nrows=2\\); print\\(df.columns.tolist\\(\\)\\)\")",
+      "Bash(echo \"PID: $!\")"
     ]
   }
 }

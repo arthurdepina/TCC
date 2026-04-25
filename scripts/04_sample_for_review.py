@@ -15,8 +15,8 @@ Critérios de seleção (600 total):
      — Comentários muito curtidos têm mais peso analítico no TCC.
      — NEGATIVO tem apenas 2 comentários com likes > 50, por isso não tem grupo próprio aqui.
   2. Amostra estratificada POSITIVO × channel_type: 80 + 80
-  3. Amostra estratificada VIVENCIAL × channel_type: 80 + 80
-     — VIVENCIAL é um label novo que merece validação humana cuidadosa.
+  3. Amostra estratificada TANGENCIAL × channel_type: 80 + 80
+     — TANGENCIAL é um label novo que merece validação humana cuidadosa.
   4. NEGATIVO (todos os tipos de canal juntos): 100
      — Só 709 no total; agrupamos para garantir representação.
   5. Comentários muito curtos (< 15 chars) com label substantivo: 100
@@ -41,7 +41,7 @@ import numpy as np
 # ─── Caminhos ────────────────────────────────────────────────────────────────
 
 ROOT        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LABELS_CSV  = os.path.join(ROOT, "data", "processed", "llm_labeled_comments_v2.csv")
+LABELS_CSV  = os.path.join(ROOT, "data", "processed", "llm_labeled_comments_v3.csv")
 COMMENTS_CSV= os.path.join(ROOT, "data", "processed", "preprocessed_comments.csv")
 OUT_ARTHUR  = os.path.join(ROOT, "data", "processed", "para_revisao_arthur.csv")
 OUT_ANA     = os.path.join(ROOT, "data", "processed", "para_revisao_ana.csv")
@@ -81,7 +81,7 @@ def add_sample(pool: pd.DataFrame, n: int, label: str) -> None:
 # NEGATIVO tem só 2 comentários com likes > 50, então agrupa tudo
 high_like = df[
     (df["likeCount"] > 50) &
-    (df["label_llm"].isin(["POSITIVO", "VIVENCIAL", "NEGATIVO"]))
+    (df["label_llm"].isin(["POSITIVO", "TANGENCIAL", "NEGATIVO"]))
 ]
 add_sample(high_like, 80, "Alta relevancia (likes > 50)")
 
@@ -93,13 +93,13 @@ add_sample(pos_prof, 80, "POSITIVO x profissional")
 pos_am = df[(df["label_llm"] == "POSITIVO") & (df["channel_type"] == "amador")]
 add_sample(pos_am, 80, "POSITIVO x amador")
 
-# 4. VIVENCIAL × profissional
-viv_prof = df[(df["label_llm"] == "VIVENCIAL") & (df["channel_type"] == "profissional")]
-add_sample(viv_prof, 80, "VIVENCIAL x profissional")
+# 4. TANGENCIAL × profissional
+viv_prof = df[(df["label_llm"] == "TANGENCIAL") & (df["channel_type"] == "profissional")]
+add_sample(viv_prof, 80, "TANGENCIAL x profissional")
 
-# 5. VIVENCIAL × amador
-viv_am = df[(df["label_llm"] == "VIVENCIAL") & (df["channel_type"] == "amador")]
-add_sample(viv_am, 80, "VIVENCIAL x amador")
+# 5. TANGENCIAL × amador
+viv_am = df[(df["label_llm"] == "TANGENCIAL") & (df["channel_type"] == "amador")]
+add_sample(viv_am, 80, "TANGENCIAL x amador")
 
 # 6. NEGATIVO (todos os canais juntos — só 709 no total)
 neg_all = df[df["label_llm"] == "NEGATIVO"]
@@ -108,7 +108,7 @@ add_sample(neg_all, 100, "NEGATIVO (todos os canais)")
 # 7. Comentários curtos (< 15 chars) com label substantivo
 short = df[
     (df["text_length"] < 15) &
-    (df["label_llm"].isin(["POSITIVO", "NEGATIVO", "VIVENCIAL"])) &
+    (df["label_llm"].isin(["POSITIVO", "NEGATIVO", "TANGENCIAL"])) &
     (~df["commentId"].isin(selected_ids))
 ]
 add_sample(short, 100, "Curtos (< 15 chars)")
@@ -140,5 +140,5 @@ print(result["label_llm"].value_counts().to_string())
 print("\nDistribuicao channel_type no conjunto de revisao:")
 print(result["channel_type"].value_counts().to_string())
 print("\nInstrucoes:")
-print("  Preencha a coluna 'label_revisao' com: POSITIVO, NEGATIVO, VIVENCIAL ou DESCARTAVEL")
+print("  Preencha a coluna 'label_revisao' com: POSITIVO, NEGATIVO, TANGENCIAL ou DESCARTAVEL")
 print("  Deixe em branco se concordar com o label_llm (so corrija o que discordar)")
