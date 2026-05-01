@@ -25,6 +25,7 @@ Requisitos:
     pip install scikit-learn xgboost pandas numpy
 """
 
+import sys
 import numpy as np
 import pandas as pd
 import pickle
@@ -54,6 +55,9 @@ OUT_DIR    = ROOT / "data" / "processed" / "models"
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     log_lines = []
 
