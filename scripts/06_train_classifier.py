@@ -91,6 +91,7 @@ def main():
         learning_rate=0.1,
         eval_metric="mlogloss",
         random_state=RANDOM_STATE,
+        device="cuda",
         verbosity=0,
     )
 
