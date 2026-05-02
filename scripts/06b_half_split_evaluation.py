@@ -26,7 +26,7 @@ Entradas:
     data/processed/embedding_meta.csv
 
 Saidas (nao sobrescreve nada existente):
-    data/processed/models/XGBoost_half1.pkl
+    data/processed/models/XGBoost_half.pkl
     data/processed/models/resultados_half_split.txt
     data/processed/second_half_predictions.csv
 
@@ -65,7 +65,7 @@ COMMENTS_CSV = ROOT / "data" / "processed" / "preprocessed_comments.csv"
 LLM_CSV      = ROOT / "data" / "processed" / "llm_labeled_comments_v3.csv"
 EMBEDDINGS   = ROOT / "data" / "processed" / "embeddings.npy"
 META_CSV     = ROOT / "data" / "processed" / "embedding_meta.csv"
-OUT_MODEL    = ROOT / "data" / "processed" / "models" / "XGBoost_half1.pkl"
+OUT_MODEL    = ROOT / "data" / "processed" / "models" / "XGBoost_half.pkl"
 OUT_REPORT   = ROOT / "data" / "processed" / "models" / "resultados_half_split.txt"
 OUT_PREDS    = ROOT / "data" / "processed" / "second_half_predictions.csv"
 

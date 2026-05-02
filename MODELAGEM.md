@@ -27,37 +27,49 @@ llm_labeled_comments_v3.csv  (42.372 comentários — 100% rotulados pelo LLM)
          ├── 34.491 não-DESCARTAVEL
          │         │
          │         ▼ Script 05
-         │   embeddings.npy  (34.491 × 768)
-         │   labels.npy
+         │   embeddings.npy  (34.491 × 768)  /  labels.npy
          │         │
-         │         ▼ Script 06
-         │   XGBoost treinado + avaliado (cross-validation 5-fold)
-         │   F1-macro: 73.3%  |  Acurácia: 86.0%
-         │   XGBoost.pkl salvo
-         │         │
-         │         ▼ Script 07
-         │   Confiança calculada para os 34.491 (predict_proba)
+         │    ┌────┴────┐
+         │    │         │
+         │    ▼         ▼
+         │  Script 06             Script 06b
+         │  cv_validation         train_and_predict
+         │  CV 5-fold             Treina na 1ª metade (17.772)
+         │  F1-macro: 73.3%       Prediz a 2ª metade (16.719)
+         │  Acurácia: 86.0%       XGBoost_half.pkl salvo
+         │  (validação acadêmica) second_half_predictions.csv
+         │    │
+         │    └─────────────────────┐
+         │                         ▼ Script 07
+         │               Join com preprocessed_comments.csv
+         │               + cálculo de keywords
          │
-         └── 7.881 DESCARTAVEL  →  confidence = None
-                   │
-                   ▼
-         all_labeled_comments.csv
-         (42.372 comentários: label LLM + confidence XGBoost)
+         └── 7.881 DESCARTAVEL  →  excluídos do dataset final
+                                            │
+                                            ▼
+                                   final_dataset.csv
+                         (16.719 comentários — apenas 2ª metade:
+                          label LLM + label XGBoost + confidence + keywords)
 ```
 
-### Decisão: Opção A
+### Decisão: pipeline em duas etapas
 
-O LLM rotulou **100% dos comentários** (42.372). O XGBoost foi treinado sobre
-esses rótulos com cross-validation e serve como:
+O LLM rotulou **100% dos comentários** (42.372) — incluindo os 7.881 DESCARTAVEL
+que o XGBoost não conseguiria identificar.
 
-1. **Componente técnico validado** — F1-macro 73,3% no CV demonstra capacidade
-   de generalização do pipeline BERTimbau + XGBoost
-2. **Gerador de confiança** — o `predict_proba` do XGBoost é usado para
-   calcular a intensidade emocional de cada comentário
+O pipeline separa claramente dois papéis:
 
-O dataset final usa os **rótulos LLM** como fonte principal de análise.
-A alternativa (XGBoost classificar a segunda metade) foi descartada pois o
-modelo não consegue identificar DESCARTAVEL, contaminando ~16% dos dados.
+1. **Script 06 — validação acadêmica:** CV 5-fold sobre os 34.491 não-DESCARTAVEL
+   demonstra que o pipeline BERTimbau + XGBoost generaliza (F1-macro 73,3%).
+   Nenhum modelo é salvo — essa etapa existe apenas para citar no TCC.
+
+2. **Script 06b — classificação genuína:** XGBoost treina na 1ª metade (17.772)
+   e prediz a 2ª metade (16.719) sem ter visto esses dados. O `confidence`
+   produzido aqui é real e é usado como proxy de intensidade emocional.
+
+O **dataset final** (`final_dataset.csv`) contém exclusivamente os 16.719
+comentários da 2ª metade — com rótulo LLM (referência) e rótulo XGBoost
+(predição genuína) para comparação.
 
 ---
 
@@ -176,14 +188,15 @@ Tempo de execução   : ~2 minutos (GPU RTX 4060 Laptop)
 
 ---
 
-## 4. Script 06 — Treinamento do classificador XGBoost
+## 4. Script 06 — Validação Cruzada do Pipeline
 
-**Arquivo:** `scripts/06_train_classifier.py`
+**Arquivo:** `scripts/06_cv_validation.py`
 
 ### O que faz
 
-Treina o XGBoost sobre os embeddings BERTimbau com validação cruzada
-estratificada 5-fold e salva o modelo treinado.
+Avalia o pipeline BERTimbau + XGBoost via validação cruzada estratificada
+5-fold sobre os 34.491 não-DESCARTAVEL. Objetivo exclusivamente acadêmico:
+demonstrar a capacidade de generalização do pipeline. Nenhum modelo é salvo.
 
 ### Decisões técnicas
 
@@ -230,9 +243,8 @@ de forma mais consistente.
 
 | Arquivo | Descrição |
 |---|---|
-| `data/processed/models/XGBoost.pkl` | Modelo treinado no dataset completo |
 | `data/processed/models/resultados_cv.csv` | Métricas por fold |
-| `data/processed/models/relatorio_treino.txt` | Relatório completo da execução |
+| `data/processed/models/relatorio_cv.txt` | Relatório completo da execução |
 
 ---
 
@@ -255,7 +267,7 @@ O script reutiliza os embeddings já gerados — sem rodar o BERTimbau novamente
 ### O que faz
 
 1. Divide `embeddings.npy` em treino (1ª metade) e teste (2ª metade) por `commentId`
-2. Treina um novo XGBoost (`XGBoost_half1.pkl`) apenas na 1ª metade
+2. Treina um novo XGBoost (`XGBoost_half.pkl`) apenas na 1ª metade
 3. Prediz rótulo + confiança para cada comentário da 2ª metade
 4. Compara previsões XGBoost com rótulos LLM — avaliação genuína
 5. Salva `second_half_predictions.csv` com label, confiança e intensidade
@@ -349,7 +361,7 @@ modelo tem alguma memorização, mas generaliza razoavelmente bem.
 
 | Arquivo | Descrição |
 |---|---|
-| `data/processed/models/XGBoost_half1.pkl` | Modelo treinado apenas na 1ª metade |
+| `data/processed/models/XGBoost_half.pkl` | Modelo treinado apenas na 1ª metade |
 | `data/processed/models/resultados_half_split.txt` | Relatório completo |
 | `data/processed/second_half_predictions.csv` | label_llm, label_xgb, confidence, intensidade, concorda |
 
@@ -359,56 +371,42 @@ modelo tem alguma memorização, mas generaliza razoavelmente bem.
 
 **Arquivo:** `scripts/07_build_final_dataset.py`
 
-> O script original `07_classify_remaining.py` foi concebido para a Opção B
-> (XGBoost classifica a segunda metade). Com a adoção da Opção A (LLM rotula tudo),
-> foi substituído por este script de lógica simplificada.
-
 ### O que faz
 
-1. Carrega `embeddings.npy` e calcula confiança (`predict_proba`) para os
-   34.491 não-DESCARTAVEL — sem precisar rodar o BERTimbau novamente
-2. Reporta concordância XGBoost × LLM (informativa — XGBoost viu esses dados)
-3. Monta `all_labeled_comments.csv` com labels LLM + confiança XGBoost
+1. Carrega `second_half_predictions.csv` (saída do script 06b) — 16.719 comentários
+   com rótulo LLM, rótulo XGBoost, confiança e intensidade
+2. Cruza com `preprocessed_comments.csv` para obter `text`, `text_clean`,
+   `channel_type`, `likeCount` e `video_title`
+3. Calcula coluna `keywords` — termos de confiabilidade percebida encontrados
+   em `text_clean` (separados por ";")
+4. Salva `final_dataset.csv` pronto para análise
 
-### Concordância XGBoost × LLM (base de treino)
+### Termos de confiabilidade (heurística)
 
-> **Atenção:** O XGBoost foi treinado sobre esses dados — use o cross-validation
-> do script 06 como avaliação real. Esses números refletem memorização parcial.
+Usados para preencher a coluna `keywords`:
 
 ```
-              precision    recall  f1-score   support
-    NEGATIVO       0.96      1.00      0.98      1.783
-  TANGENCIAL       0.98      0.98      0.98     14.455
-    POSITIVO       0.99      0.98      0.99     18.253
-    accuracy                           0.98     34.491
+"explicou", "explicação", "faz sentido", "confio", "confiança",
+"científico", "embasado", "comprovado", "especialista", "referência",
+"pesquisa", "estudo", "dados", "evidência", "profissional",
+"recomendo", "recomenda", "seguro", "correto", "verdade"
 ```
 
-### Intensidade emocional
+### Arquivos gerados
 
-A confiança do XGBoost é usada como proxy de intensidade emocional:
-
-| Faixa | Intensidade | Contagem | % |
-|---|---|---|---|
-| > 0,80 | ALTA | 29.866 | 86,6% |
-| 0,60 – 0,80 | MÉDIA | 3.565 | 10,3% |
-| < 0,60 | BAIXA | 1.060 | 3,1% |
-
-Confiança média por label:
-
-| Label | Confiança média |
+| Arquivo | Descrição |
 |---|---|
-| NEGATIVO | 0,943 |
-| POSITIVO | 0,928 |
-| TANGENCIAL | 0,896 |
-
-NEGATIVO tem confiança mais alta — comentários negativos possuem características
-linguísticas mais distintas, tornando-os mais fáceis de identificar pelo modelo.
+| `data/processed/final_dataset.csv` | Dataset final — 16.719 comentários da 2ª metade |
 
 ---
 
 ## 7. Dataset final
 
-**Arquivo:** `data/processed/all_labeled_comments.csv`
+**Arquivo:** `data/processed/final_dataset.csv`
+
+Contém exclusivamente os **16.719 comentários da 2ª metade** — aqueles que o
+XGBoost nunca viu durante o treinamento. Os rótulos XGBoost são predições
+genuínas, não memorização.
 
 ### Estrutura
 
@@ -416,40 +414,39 @@ linguísticas mais distintas, tornando-os mais fáceis de identificar pelo model
 |---|---|
 | `commentId` | ID único do comentário |
 | `text` | Texto original |
-| `text_clean` | Texto limpo (URLs removidas, emojis convertidos) |
+| `text_clean` | Texto tratado (URLs removidas, emojis convertidos) |
 | `channel_type` | `"profissional"` ou `"amador"` |
 | `likeCount` | Número de curtidas |
 | `video_title` | Título do vídeo |
-| `label` | Rótulo LLM: POSITIVO / NEGATIVO / TANGENCIAL / DESCARTAVEL |
-| `confidence` | Confiança XGBoost (0,0–1,0); `None` para DESCARTAVEL |
+| `label_llm` | Rótulo atribuído pelo LLM (referência) |
+| `label_xgb` | Rótulo predito pelo XGBoost (predição genuína) |
+| `confidence` | Probabilidade máxima do XGBoost (0,0–1,0) |
+| `intensidade` | ALTA (>0,80) / MEDIA (0,60–0,80) / BAIXA (<0,60) |
+| `concorda` | `True` se label_llm == label_xgb |
+| `keywords` | Termos de confiabilidade encontrados em text_clean (separados por ";") |
 
-### Distribuição
+### Distribuição (label_xgb — predição genuína do XGBoost)
 
 | Label | Contagem | % |
 |---|---|---|
-| POSITIVO | 18.253 | 43,1% |
-| TANGENCIAL | 14.455 | 34,1% |
-| DESCARTAVEL | 7.881 | 18,6% |
-| NEGATIVO | 1.783 | 4,2% |
-| **Total** | **42.372** | — |
+| POSITIVO | 9.321 | 55,8% |
+| TANGENCIAL | 6.314 | 37,8% |
+| NEGATIVO | 1.084 | 6,5% |
+| **Total** | **16.719** | — |
 
-| Canal | Contagem | % |
-|---|---|---|
-| Profissional | 21.351 | 50,4% |
-| Amador | 21.021 | 49,6% |
+> Nota: DESCARTAVEL não consta pois o XGBoost foi treinado apenas nas 3 classes
+> de sentimento. Os DESCARTAVEL da 2ª metade foram excluídos pelo script 05
+> (não geraram embeddings) e portanto não aparecem no dataset final.
 
 ---
 
-IMPORTANTE!!!
-VALE REVISAR (em especial a respeito de qual base utilizar:
-all_labeled_comments x second_half_predictions):
 ## 8. Próximos passos
 
 ### Análise comparativa (script 08 — não implementado)
 
 > O script 08 não foi implementado neste repositório. A análise pode ser
 > conduzida diretamente em um Jupyter Notebook ou ferramenta de visualização
-> a partir do `all_labeled_comments.csv`, que já contém todas as colunas
+> a partir do `final_dataset.csv`, que já contém todas as colunas
 > necessárias.
 
 A análise deve responder as 4 perguntas de pesquisa do TCC:
@@ -458,7 +455,7 @@ A análise deve responder as 4 perguntas de pesquisa do TCC:
 
 #### Pergunta 1 — Os comentários mais engajados expressam sentimentos diferentes entre profissionais e amadores?
 
-**Base:** `all_labeled_comments.csv`, filtrado por `likeCount > 50`
+**Base:** `final_dataset.csv`, filtrado por `likeCount > 50`
 
 **Método:**
 ```python
@@ -473,7 +470,7 @@ comentários com likes > 50, excluindo DESCARTAVEL.
 
 #### Pergunta 2 — Conteúdos de profissionais geram maior proporção de comentários positivos?
 
-**Base:** `all_labeled_comments.csv`, excluindo DESCARTAVEL
+**Base:** `final_dataset.csv`, excluindo DESCARTAVEL
 
 **Método:**
 ```python
@@ -490,7 +487,7 @@ entre proporções é estatisticamente significativa.
 
 #### Pergunta 3 — A intensidade emocional difere entre profissionais e amadores?
 
-**Base:** `all_labeled_comments.csv`, coluna `confidence` (apenas não-DESCARTAVEL)
+**Base:** `final_dataset.csv`, coluna `confidence` (apenas não-DESCARTAVEL)
 
 **Método:**
 ```python
@@ -519,7 +516,7 @@ gráfico de barras da distribuição de intensidade por grupo.
 
 #### Pergunta 4 — Conteúdos de profissionais apresentam mais indícios de confiabilidade percebida?
 
-**Base:** `all_labeled_comments.csv`, coluna `text_clean`, apenas POSITIVO
+**Base:** `final_dataset.csv`, coluna `text_clean`, apenas POSITIVO
 
 **Método — heurística de palavras-chave:**
 
@@ -583,4 +580,4 @@ Interpretação do Kappa:
 
 ---
 
-*Documento atualizado em 01/05/2026. Scripts em `scripts/`. Dados em `data/processed/`.*
+*Documento atualizado em 02/05/2026. Scripts em `scripts/`. Dados em `data/processed/`.*
