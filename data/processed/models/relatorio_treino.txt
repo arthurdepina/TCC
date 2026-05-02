@@ -1,0 +1,45 @@
+============================================================
+  TREINAMENTO XGBOOST — TCC
+============================================================
+Embeddings: 34,491 comentários × 768 dimensões
+Validação : 5-fold estratificado
+
+Distribuição de classes:
+  NEGATIVO (0): 1,783  (5.2%)
+  TANGENCIAL (1): 14,455  (41.9%)
+  POSITIVO (2): 18,253  (52.9%)
+
+Executando cross-validation...
+
+── Resultados por fold ─────────────────────────────────
+  Fold 1: Acurácia=0.8545  F1-macro=0.7254  F1-weighted=0.8522
+  Fold 2: Acurácia=0.8636  F1-macro=0.7382  F1-weighted=0.8609
+  Fold 3: Acurácia=0.8653  F1-macro=0.7346  F1-weighted=0.8623
+  Fold 4: Acurácia=0.8620  F1-macro=0.7334  F1-weighted=0.8598
+  Fold 5: Acurácia=0.8545  F1-macro=0.7314  F1-weighted=0.8530
+
+── Médias ± desvio padrão ──────────────────────────────
+  Acurácia   : 0.8600 ± 0.0046
+  F1-macro   : 0.7326 ± 0.0042
+  F1-weighted: 0.8576 ± 0.0042
+
+Treinando no dataset completo para salvar o modelo final...
+Modelo salvo: C:\Users\arthu\Documents\GitHub\TCC\data\processed\models\XGBoost.pkl
+
+── Relatório de classificação (dataset completo) ───────
+   (atenção: treino e teste são os mesmos — serve só como referência)
+                precision    recall  f1-score   support
+  
+      NEGATIVO       0.96      1.00      0.98      1783
+    TANGENCIAL       0.98      0.98      0.98     14455
+      POSITIVO       0.99      0.98      0.99     18253
+  
+      accuracy                           0.98     34491
+     macro avg       0.98      0.99      0.98     34491
+  weighted avg       0.98      0.98      0.98     34491
+
+── Matriz de confusão (dataset completo) ───────────────
+           NEGATIVO  TANGENCIAL    POSITIVO
+  NEGATIVO        1783           0           0
+  TANGENCIAL          32       14230         193
+  POSITIVO          45         307       17901

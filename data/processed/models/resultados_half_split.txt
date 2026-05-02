@@ -1,0 +1,53 @@
+Carregando dados...
+  1a metade : 21,186 comentarios
+  2a metade : 21,186 comentarios
+
+Embeddings carregados: (34491, 768)
+
+Divisao (nao-DESCARTAVEL):
+  Treino (1a metade): 17,772 comentarios
+    NEGATIVO (0): 699  (3.9%)
+    TANGENCIAL (1): 8,141  (45.8%)
+    POSITIVO (2): 8,932  (50.3%)
+  Teste  (2a metade): 16,719 comentarios
+    NEGATIVO (0): 1,084  (6.5%)
+    TANGENCIAL (1): 6,314  (37.8%)
+    POSITIVO (2): 9,321  (55.8%)
+
+Treinando XGBoost na primeira metade...
+Modelo salvo: C:\Users\arthu\Documents\GitHub\TCC\data\processed\models\XGBoost_half1.pkl
+
+============================================================
+  AVALIACAO — XGBoost (treino: 1a metade) x LLM (2a metade)
+  Esta e a comparacao genuina: modelo nunca viu esses dados.
+============================================================
+
+              precision    recall  f1-score   support
+
+    NEGATIVO       0.51      0.24      0.32      1084
+  TANGENCIAL       0.77      0.89      0.82      6314
+    POSITIVO       0.93      0.89      0.91      9321
+
+    accuracy                           0.85     16719
+   macro avg       0.74      0.67      0.69     16719
+weighted avg       0.84      0.85      0.84     16719
+
+Matriz de confusao (linhas=LLM, colunas=XGBoost):
+             NEGATIVO  TANGENCIAL    POSITIVO
+   NEGATIVO         255         739          90
+  TANGENCIAL         188        5603         523
+   POSITIVO          59         942        8320
+
+Concordancia geral: 14,178 / 16,719  (84.8%)
+
+Distribuicao de intensidade (segunda metade — label XGBoost):
+  ALTA    13039  (78.0%)
+  MEDIA    2437  (14.6%)
+  BAIXA    1243  (7.4%)
+
+Confianca media por label XGBoost:
+  NEGATIVO     0.688
+  TANGENCIAL   0.867
+  POSITIVO     0.917
+
+Predicoes salvas: C:\Users\arthu\Documents\GitHub\TCC\data\processed\second_half_predictions.csv
