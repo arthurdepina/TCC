@@ -14,7 +14,7 @@ Entradas:
     data/processed/preprocessed_comments.csv
 
 Saídas:
-    data/processed/final_dataset.csv
+    data/processed/final_labeled_dataset.csv
 
 Colunas do dataset final:
     commentId    — ID único do comentário
@@ -59,7 +59,7 @@ TERMOS_CONFIABILIDADE = [
 ROOT         = Path(__file__).parent.parent
 PREDS_CSV    = ROOT / "data" / "processed" / "second_half_predictions.csv"
 COMMENTS_CSV = ROOT / "data" / "processed" / "preprocessed_comments.csv"
-OUT_FINAL    = ROOT / "data" / "processed" / "final_dataset.csv"
+OUT_FINAL    = ROOT / "data" / "processed" / "final_labeled_dataset.csv"
 
 
 # ─── Palavras-chave ───────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ def main():
     # ── Salva ───────────────────────────────────────────────────────────────
     final_df.to_csv(OUT_FINAL, index=False, encoding="utf-8-sig")
     print(f"\nDataset final salvo: {OUT_FINAL}")
-    print("Próximo passo: python scripts/08_analyze_results.py")
+    print("Próximo passo: python scripts/08_credibility_heuristic.py")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+﻿Análise,Teste,Estatística,p-valor,Graus de liberdade,Diferença significativa (α=0.05)
+P1 — Sentimentos em comentários engajados (likeCount >= 10),Chi-quadrado,1.5303,0.465264,2,Não
+P2/P6 — Distribuição de sentimentos na base completa,Chi-quadrado,1887.3263,0.0,2,Sim
+P3 — Intensidade emocional por grupo,Chi-quadrado,130.132,0.0,2,Sim
+P4 — Confiança percebida por grupo,Chi-quadrado,26.3406,0.0,1,Sim
+P5 — Concordância LLM vs XGBoost,Cohen's Kappa,0.7163,—,—,—

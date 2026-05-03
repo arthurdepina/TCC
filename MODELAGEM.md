@@ -1,7 +1,8 @@
 # Modelagem e Classificação — TCC
 
 > **Contexto:** Este documento descreve as etapas de geração de embeddings,
-> treinamento e construção do dataset final, correspondendo aos scripts 05, 06 e 07.
+> treinamento, construção do dataset final e extração de confiança percebida,
+> correspondendo aos scripts 05, 06, 06b, 07 e 08.
 > Registra decisões técnicas, resultados obtidos e justificativas.
 
 ---
@@ -11,11 +12,12 @@
 1. [Visão geral do pipeline](#1-visão-geral-do-pipeline)
 2. [Métricas de avaliação](#2-métricas-de-avaliação)
 3. [Script 05 — Geração de embeddings BERTimbau](#3-script-05--geração-de-embeddings-bertimbau)
-4. [Script 06 — Treinamento do classificador XGBoost](#4-script-06--treinamento-do-classificador-xgboost)
-5. [Script 06b — Avaliação por divisão de metades](#5-script-06b--avaliação-por-divisão-de-metades)
-6. [Script 07 — Construção do dataset final](#6-script-07--construção-do-dataset-final)
-7. [Dataset final](#7-dataset-final)
-8. [Próximos passos](#8-próximos-passos)
+4. [Script 06 — Validação Cruzada do Pipeline](#4-script-06--validação-cruzada-do-pipeline)
+5. [Script 06b — Treinamento e Predição (Half-Split)](#5-script-06b--treinamento-e-predição-half-split)
+6. [Script 07 — Construção do dataset rotulado](#6-script-07--construção-do-dataset-rotulado)
+7. [Script 08 — Confiança Percebida (heurística)](#7-script-08--confiança-percebida-heurística)
+8. [Dataset final](#8-dataset-final)
+9. [Próximos passos](#9-próximos-passos)
 
 ---
 
@@ -248,7 +250,7 @@ de forma mais consistente.
 
 ---
 
-## 5. Script 06b — Avaliação por divisão de metades
+## 5. Script 06b — Treinamento e Predição (Half-Split)
 
 **Arquivo:** `scripts/06b_half_split_evaluation.py`
 
@@ -367,7 +369,7 @@ modelo tem alguma memorização, mas generaliza razoavelmente bem.
 
 ---
 
-## 6. Script 07 — Construção do dataset final
+## 6. Script 07 — Construção do dataset rotulado
 
 **Arquivo:** `scripts/07_build_final_dataset.py`
 
@@ -400,9 +402,80 @@ Usados para preencher a coluna `keywords`:
 
 ---
 
-## 7. Dataset final
+## 7. Script 08 — Confiança Percebida (heurística)
 
-**Arquivo:** `data/processed/final_dataset.csv`
+**Arquivo:** `scripts/08_credibility_heuristic.py`
+
+### O que faz
+
+Extrai a métrica `confianca_percebida` para cada comentário da base final,
+aplicando heurística de palavras-chave com tratamento de negação e
+desambiguação via `label_xgb`. Aplica-se às três classes de sentimento:
+POSITIVO, TANGENCIAL e NEGATIVO.
+
+### Lógica de classificação
+
+```
+Para cada comentário:
+  1. Busca termos de ALTA credibilidade em text_clean
+  2. Verifica negação (janela de 3 palavras antes do termo)
+     → termo negado → tratado como sinal de BAIXA
+  3. Busca termos de BAIXA credibilidade
+  4. Determina keyword_signal:
+       só ALTA encontrada → ALTA
+       só BAIXA encontrada → BAIXA
+       ambas encontradas → CONFLITO
+       nenhuma → NEUTRA
+  5. Resolve CONFLITO via label_xgb:
+       POSITIVO   → ALTA
+       NEGATIVO   → BAIXA
+       TANGENCIAL → NEUTRA
+```
+
+### Termos utilizados
+
+**ALTA credibilidade:**
+```
+"explicou", "explicação", "faz sentido", "confio", "confiança",
+"científico", "embasado", "comprovado", "especialista", "referência",
+"pesquisa", "estudo", "evidência", "recomendo", "recomenda",
+"correto", "verdade", "confiável", "fundamentado", "comprovou",
+"funciona", "ajudou", "esclareceu", "ficou claro", "bem explicado",
+"informação clara", "informação correta"
+```
+
+**BAIXA credibilidade:**
+```
+"errado", "equivocado", "pseudociência", "desinformação", "charlatão",
+"sem base", "enganação", "falso", "mentira", "perigoso", "irresponsável",
+"absurdo", "ridículo", "não funciona", "não confio", "não ajuda",
+"não faz sentido", "não é verdade", "não é correto", "lixo", "besteira"
+```
+
+### Decisões técnicas
+
+| Decisão | Escolha | Justificativa |
+|---|---|---|
+| Classes incluídas | POSITIVO, TANGENCIAL, NEGATIVO | Todas as três contêm sinais de credibilidade |
+| Negação | Janela de 3 palavras antes do termo | Cobre a maioria dos casos em português sem NLP avançado |
+| Conflito | Desambiguado via `label_xgb` | O sentimento já classificado contextualiza o sinal ambíguo |
+| Limitação | Heurística insensível a contexto | Resultados indicativos — documentar no TCC |
+
+### Arquivos gerados
+
+| Arquivo | Descrição |
+|---|---|
+| `data/processed/final_dataset.csv` | Base completa + `confianca_percebida` — dataset de análise |
+| `data/processed/final_dataset_audit.csv` | + `keyword_signal`, `keywords_alta`, `keywords_baixa`, `conflito` |
+
+---
+
+## 8. Dataset final
+
+**Arquivo:** `data/processed/final_dataset.csv` (gerado pelo script 08)
+
+> O arquivo intermediário `final_labeled_dataset.csv` (gerado pelo script 07)
+> contém os mesmos dados sem a coluna `confianca_percebida`.
 
 Contém exclusivamente os **16.719 comentários da 2ª metade** — aqueles que o
 XGBoost nunca viu durante o treinamento. Os rótulos XGBoost são predições
@@ -423,7 +496,8 @@ genuínas, não memorização.
 | `confidence` | Probabilidade máxima do XGBoost (0,0–1,0) |
 | `intensidade` | ALTA (>0,80) / MEDIA (0,60–0,80) / BAIXA (<0,60) |
 | `concorda` | `True` se label_llm == label_xgb |
-| `keywords` | Termos de confiabilidade encontrados em text_clean (separados por ";") |
+| `keywords` | Termos de confiabilidade encontrados em text_clean — lista básica do script 07 |
+| `confianca_percebida` | ALTA / BAIXA / NEUTRA — heurística com negação e desambiguação (script 08) |
 
 ### Distribuição (label_xgb — predição genuína do XGBoost)
 
@@ -440,7 +514,7 @@ genuínas, não memorização.
 
 ---
 
-## 8. Próximos passos
+## 9. Próximos passos
 
 ### Análise comparativa (script 08 — não implementado)
 
@@ -580,4 +654,4 @@ Interpretação do Kappa:
 
 ---
 
-*Documento atualizado em 02/05/2026. Scripts em `scripts/`. Dados em `data/processed/`.*
+*Documento atualizado em 02/05/2026. Scripts em [scripts/](scripts/). Dados em [data/processed/](data/processed/).*
