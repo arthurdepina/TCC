@@ -15,13 +15,13 @@ csl: abnt.csl
 
 ## Resumo
 
-*Escreva o resumo aqui. Deve conter de 150 a 250 palavras, descrevendo contexto, motivação, objetivo, metodologia e resultados.*
+A proliferação de conteúdos sobre saúde mental no YouTube por criadores sem formação técnica suscita questões sobre os diferentes impactos emocionais gerados em comparação aos produzidos por profissionais da área. Este trabalho propõe e implementa um pipeline computacional para coletar, rotular e analisar comentários de vídeos do YouTube, comparando as reações do público entre canais de criadores profissionais e amadores. Foram coletados 42.372 comentários de 79 vídeos de 12 canais, sendo seis operados por profissionais de saúde e seis por criadores sem formação técnica. Os comentários foram rotulados automaticamente quanto à polaridade emocional (POSITIVO, NEGATIVO, TANGENCIAL) pelo modelo de linguagem Claude Haiku e, em seguida, reclassificados por um classificador supervisionado composto por *embeddings* do BERTimbau e XGBoost, com desempenho validado por validação cruzada e concordância substancial com os rótulos do LLM. A confiança percebida pelo público foi avaliada por heurística baseada em palavras-chave. A análise estatística via qui-quadrado revelou diferenças significativas entre os grupos em quatro das seis perguntas de pesquisa: canais amadores concentram maior proporção de comentários positivos e de maior intensidade emocional, enquanto canais profissionais geram proporcionalmente mais comentários tangenciais (relatos pessoais e referências ao tema sem reação direta ao vídeo). Os resultados evidenciam que o perfil do criador influencia tanto a receptividade emocional do público quanto o tipo de engajamento, oferecendo subsídios para práticas mais responsáveis de divulgação de informações sobre saúde mental em plataformas digitais.
 
 **Palavras-chave:** Inteligência Artificial; Processamento de Linguagem Natural; Análise de Sentimentos; Saúde Mental; YouTube; BERTimbau.
 
 ## Abstract
 
-*Write the abstract here. Must have between 150 to 250 words.*
+The proliferation of mental health content on YouTube by creators without technical training raises questions about the different emotional impacts generated compared to content produced by healthcare professionals. This work proposes and implements a computational pipeline to collect, label, and analyze YouTube video comments, comparing audience reactions between channels run by professional and amateur creators. A total of 42,372 comments were collected from 79 videos across 12 channels, six operated by healthcare professionals and six by non-specialist creators. Comments were automatically labeled for sentiment polarity (POSITIVE, NEGATIVE, TANGENTIAL) using the Claude Haiku language model and subsequently reclassified by a supervised classifier combining BERTimbau embeddings and XGBoost, with performance validated through cross-validation and substantial agreement with the LLM labels. Perceived audience confidence was assessed using a keyword-based heuristic. Statistical analysis via chi-square revealed significant differences between groups in four of six research questions: amateur channels concentrate a higher proportion of positive comments and greater emotional intensity, while professional channels generate proportionally more tangential comments (personal accounts and topic references without direct reaction to the video). The results demonstrate that creator profile influences both the emotional receptiveness of the audience and the type of engagement generated, providing insights for more responsible practices in mental health information dissemination on digital platforms.
 
 **Keywords:** Artificial Intelligence; Natural Language Processing; Sentiment Analysis; Mental Health; YouTube; BERTimbau.
 
@@ -49,6 +49,17 @@ De forma complementar ao objetivo geral, a pesquisa buscou atingir os seguintes 
 - Classificar automaticamente os comentários em categorias de sentimento utilizando um *pipeline* que combina rotulação por modelo de linguagem de grande porte (*Large Language Model*, LLM) e um classificador supervisionado baseado em *embeddings* contextuais gerados pelo modelo *BERTimbau*;
 - Comparar padrões de sentimento, intensidade emocional e confiança percebida entre comentários de canais profissionais e amadores;
 - Avaliar a concordância entre a rotulação realizada pelo LLM e as predições do classificador supervisionado, verificando a viabilidade do *pipeline* proposto.
+
+O terceiro objetivo específico, referente à comparação de padrões de sentimento, intensidade emocional e confiança percebida entre os grupos, é operacionalizado por meio de seis perguntas de pesquisa que orientam a análise quantitativa deste trabalho:
+
+- **P1:** Há diferença estatisticamente significativa na distribuição de sentimentos em comentários de alto engajamento (likeCount ≥ 10) entre canais profissionais e amadores?
+- **P2:** Há diferença estatisticamente significativa na distribuição geral de sentimentos entre os dois grupos?
+- **P3:** Há diferença estatisticamente significativa na intensidade emocional dos comentários entre canais profissionais e amadores?
+- **P4:** Há diferença estatisticamente significativa na proporção de comentários com alta confiança percebida entre os dois grupos?
+- **P5:** Qual o grau de concordância entre os rótulos atribuídos pelo LLM e as predições do classificador XGBoost?
+- **P6:** Há diferença estatisticamente significativa na proporção de comentários tangenciais entre canais profissionais e amadores?
+
+Os resultados obtidos para cada uma dessas perguntas são apresentados e discutidos na Seção 4.
 
 ## 1.4) Contribuições da pesquisa para a academia e sociedade
 
@@ -86,11 +97,17 @@ O avanço seguinte foi impulsionado pelo aprendizado profundo (*deep learning*) 
 
 No contexto do português brasileiro, @souza2020 desenvolveu o *BERTimbau*, o primeiro modelo *BERT* pré-treinado especificamente para a língua portuguesa, utilizando o *Brazilian Web as Corpus* (*brWaC*). O autor apresentou duas versões — *BERTimbau Base* e *BERTimbau Large* — que superaram o desempenho do modelo multilíngue *BERT* em tarefas como inferência textual, similaridade semântica e reconhecimento de entidades nomeadas. O uso de um vocabulário construído a partir de dados do português e o treinamento prolongado aumentam significativamente a sensibilidade do modelo às nuances da língua. Por essa razão, o presente trabalho utiliza o *BERTimbau* para a geração de *embeddings* contextuais dos comentários, como feature extractor com pesos congelados.
 
+Embora os *embeddings* contextuais do *BERTimbau* ofereçam representações ricas dos textos, a classificação propriamente dita demanda um algoritmo capaz de operar sobre esses vetores de forma eficiente e robusta. Este trabalho adotou o *XGBoost* (*Extreme Gradient Boosting*) [@chen2016], algoritmo de aprendizado supervisionado baseado em conjuntos de árvores de decisão que implementa o *gradient boosting* com regularização integrada, suporte a ponderação de amostras por classe e alto desempenho computacional. Essa combinação, na qual um modelo *Transformer* atua como extrator de características e um algoritmo de *ensemble* realiza a classificação final, reúne o poder representacional dos modelos contextuais à robustez e eficiência dos métodos tradicionais, sendo adotada com sucesso em tarefas de classificação de texto em domínios especializados [@li2021].
+
 ## 2.4) Análise de Sentimentos em Plataformas Digitais
 
 A aplicação prática de técnicas de análise de sentimentos em contextos digitais é de grande relevância para compreender a recepção de conteúdos na internet. @afonso2019 analisaram comentários de vídeos do YouTube utilizando *SVM* (*Support Vector Machine*) com vetorização *TF-IDF* e demonstraram que a acurácia do modelo depende diretamente da uniformidade temática do corpus. Quando os comentários se referiam ao mesmo objeto (ou "entidade dominante"), o modelo alcançou 81% de acurácia e F1-score de 0,806, superando os experimentos mais amplos com múltiplos tópicos.
 
-Os autores ressaltam que a linguagem informal, o uso de ironias e as variações linguísticas do português nas interações digitais representam desafios para a classificação automatizada de sentimentos. Esses achados reforçam a necessidade de modelos mais sensíveis ao contexto, como o *BERTimbau*, que é capaz de capturar nuances semânticas e emocionais. Embora os trabalhos existentes demonstrem o potencial das técnicas de aprendizado supervisionado em comentários do YouTube, ainda são raros os estudos que associam a análise de sentimentos ao impacto psicológico dos conteúdos de saúde mental e que comparam sistematicamente diferentes perfis de criadores. Dessa forma, este trabalho diferencia-se por propor uma abordagem que alia tecnologia e bem-estar digital.
+Os autores ressaltam que a linguagem informal, o uso de ironias e as variações linguísticas do português nas interações digitais representam desafios para a classificação automatizada de sentimentos. Esses achados reforçam a necessidade de modelos mais sensíveis ao contexto, como o *BERTimbau*, que é capaz de capturar nuances semânticas e emocionais. Além das abordagens baseadas em aprendizado de máquina, métodos léxicos e heurísticos mantêm relevância em contextos nos quais a interpretabilidade e o controle sobre o processo de classificação são prioritários. @taboada2011 demonstraram que abordagens baseadas em léxicos de orientação semântica (listas de palavras com polaridades previamente atribuídas) alcançam desempenho competitivo em tarefas de análise de sentimentos, especialmente quando combinadas a regras de tratamento de negação e modificadores de intensidade. Essa abordagem é particularmente adequada para a identificação de sinais explícitos de credibilidade percebida em textos, cenário em que a correspondência de palavras-chave permite extrair indicadores sem necessidade de treinamento supervisionado.
+
+A avaliação quantitativa de resultados em análise de sentimentos recorre a ferramentas estatísticas consolidadas. O teste qui-quadrado (χ²) é amplamente empregado para verificar se a distribuição de categorias entre dois grupos difere de forma estatisticamente significativa [@mchugh2013]. Para mensurar a concordância entre dois sistemas de classificação ou anotadores, o coeficiente Kappa de Cohen, proposto por @cohen1960, quantifica a concordância além do acaso; sua interpretação segue a escala de @landis1977, na qual valores entre 0,61 e 0,80 indicam concordância substancial. Ambas as ferramentas são utilizadas neste trabalho para avaliar os resultados da análise comparativa e validar a consistência entre as anotações do LLM e as predições do classificador supervisionado.
+
+Embora os trabalhos existentes demonstrem o potencial das técnicas de aprendizado supervisionado em comentários do YouTube, ainda são raros os estudos que associam a análise de sentimentos ao impacto psicológico dos conteúdos de saúde mental e que comparam sistematicamente diferentes perfis de criadores. Dessa forma, este trabalho diferencia-se por propor uma abordagem que alia tecnologia e bem-estar digital.
 
 ## 2.5) NLP Aplicado à Saúde Mental e Bem-Estar
 
@@ -109,6 +126,8 @@ Neste trabalho, utilizou-se o modelo Claude Haiku, pertencente à família Claud
 # 3. Metodologia
 
 Esta seção descreve o desenvolvimento do trabalho, apresentando as etapas executadas desde a coleta dos dados até a geração dos *embeddings* contextuais. A pesquisa adota uma abordagem mista (quali-quanti): o aspecto quantitativo manifesta-se na mensuração de métricas de desempenho do modelo e na classificação das categorias de sentimento dos comentários; já o aspecto qualitativo evidencia-se na interpretação contextual dos resultados e na análise das reações do público diante do conteúdo assistido.
+
+![Fluxograma do pipeline metodológico. Fonte: autores.](fluxograma_metodologia_tcc_v2.svg)
 
 ## 3.1) Visão Geral do Pipeline
 
@@ -183,13 +202,108 @@ Comentários rotulados como DESCARTÁVEL foram excluídos desta etapa, pois não
 
 Os artefatos gerados foram: `embeddings.npy` — matriz de dimensões (34.491 × 768) em formato `float32`; `labels.npy` — vetor de inteiros com os rótulos correspondentes; e `embedding_meta.csv` — arquivo de metadados com `commentId`, rótulo LLM, tipo de canal, curtidas e título do vídeo.
 
----
+## 3.8) Treinamento e Predição por Divisão Half-Split
 
-> **[TODO — Seções 3.8 em diante]:** As etapas subsequentes do pipeline — validação cruzada do classificador XGBoost (script 06), treinamento e predição por divisão *half-split* (script 06b), construção do dataset final com heurística de confiança percebida (scripts 07 e 08) e análise estatística das seis perguntas de pesquisa (script 09) — serão descritas pela coautora na continuação desta seção.
+Para gerar as predições que alimentariam as etapas subsequentes de análise, adotou-se uma estratégia de divisão por ordem de coleta, implementada no script `06_xgboost_train_and_predict.py`. O corpus de 34.491 comentários foi dividido em duas metades sequenciais, preservando a ordem original de coleta: a primeira metade (17.772 comentários) foi utilizada exclusivamente para treinamento, e a segunda metade (16.719 comentários) exclusivamente para avaliação. Essa separação garante que as predições sobre a segunda metade são genuínas, pois o modelo não teve acesso a esses dados durante o treinamento.
+
+O XGBoost foi configurado com `n_estimators=200`, `max_depth=6` e `learning_rate=0.1`, com pesos de amostra balanceados por classe. Na avaliação sobre a segunda metade, o modelo alcançou acurácia de 84,8%, F1-macro de 0,69 e F1-weighted de 0,84. Além do rótulo predito, o script calculou, para cada comentário, a coluna `confidence` (probabilidade máxima atribuída pelo classificador à classe predita, no intervalo de 0,0 a 1,0) e a coluna `intensidade`, categorizada em três faixas: ALTA (confidence > 0,80), MÉDIA (0,60 ≤ confidence ≤ 0,80) e BAIXA (confidence < 0,60). Na segunda metade, 78,0% dos comentários receberam intensidade ALTA, 14,6% MÉDIA e 7,4% BAIXA. O modelo treinado foi serializado como `XGBoost_half.pkl` e as predições foram exportadas para `second_half_predictions.csv`.
+
+## 3.9) Validação Cruzada do Classificador
+
+Para verificar a capacidade de generalização do pipeline BERTimbau + XGBoost de forma complementar à avaliação por divisão half-split, realizou-se uma validação cruzada estratificada com cinco partições (*5-fold stratified cross-validation*) sobre a base completa de 34.491 comentários não-DESCARTÁVEL, implementada no script `06_cv_validation.py`. O objetivo dessa etapa é estritamente acadêmico: demonstrar que o pipeline aprende padrões generalizáveis a partir dos *embeddings* gerados pelo BERTimbau, independentemente da partição avaliada. Nenhum modelo foi persistido nessa etapa.
+
+O classificador XGBoost foi configurado com os mesmos hiperparâmetros da etapa anterior, com pesos de amostra balanceados por classe para mitigar o impacto do desbalanceamento, em especial da classe NEGATIVO. Em cada iteração, o modelo foi treinado nas quatro partições e avaliado na partição restante. Os resultados médios obtidos foram: acurácia de 0,8600 (± 0,005), F1-macro de 0,7326 (± 0,004) e F1-weighted de 0,8576 (± 0,004). A estabilidade entre as partições, evidenciada pelos baixos desvios padrão, confirma a consistência do pipeline e corrobora os resultados obtidos na avaliação half-split.
+
+## 3.10) Construção do Dataset Final
+
+A etapa de construção do dataset final, implementada no script `07_build_final_dataset.py`, consolidou as predições do XGBoost com os metadados dos comentários. O arquivo `second_half_predictions.csv`, contendo as colunas `commentId`, `label_llm`, `label_xgb`, `confidence`, `intensidade` e `concorda`, foi cruzado com `preprocessed_comments.csv` por meio de um *join* pela coluna `commentId`, incorporando o texto original, o texto tratado (`text_clean`), o tipo de canal, a contagem de curtidas e o título do vídeo.
+
+Adicionalmente, o script calculou a coluna `keywords`, que registra os termos de credibilidade percebida encontrados no texto de cada comentário. A detecção foi realizada por correspondência direta de uma lista de 20 termos (como "especialista", "científico", "embasado" e "comprovado") ao texto normalizado em letras minúsculas. O resultado foi um dataset com 16.719 linhas e 12 colunas, salvo como `final_labeled_dataset.csv`, que serviu de entrada para a etapa seguinte de classificação de confiança percebida.
+
+## 3.11) Heurística de Confiança Percebida
+
+A classificação da confiança percebida foi realizada pelo script `08_credibility_heuristic.py`, que aplicou uma heurística léxica sobre a coluna `text_clean` de cada comentário [@taboada2011]. A heurística opera em quatro etapas sequenciais: (i) busca de termos de alta credibilidade em uma lista de 30 expressões (como "bem explicado", "informação correta" e "excelente conteúdo"); (ii) verificação de negação sobre cada termo encontrado, por meio de uma janela deslizante de três palavras anteriores ao termo, com o conjunto de negadores composto por "não", "nunca", "jamais", "nem", "nenhum" e "nada"; (iii) busca de termos de baixa credibilidade em uma lista de 23 expressões (como "pseudociência", "desinformação" e "sem base"), acrescida dos termos de alta credibilidade que foram negados na etapa anterior; (iv) determinação do sinal final a partir da combinação dos sinais detectados.
+
+Se apenas sinais de alta credibilidade forem detectados, o comentário recebe `confianca_percebida` igual a ALTA. Se apenas sinais de baixa credibilidade, recebe BAIXA. Se ambos os tipos coexistirem, configura-se um conflito, resolvido pelo rótulo do XGBoost como árbitro: POSITIVO resulta em ALTA, NEGATIVO em BAIXA e TANGENCIAL em NEUTRA. Se nenhum sinal for detectado, o comentário recebe NEUTRA. Ao final, 92% dos comentários resultaram em NEUTRA, refletindo a ausência de indicadores explícitos de credibilidade na maioria dos textos. O dataset resultante, com a coluna `confianca_percebida` adicionada, foi salvo como `final_dataset.csv`, base de análise principal do trabalho.
+
+## 3.12) Análise Estatística das Perguntas de Pesquisa
+
+A etapa final do pipeline, implementada no script `09_analyze_results.py`, operou sobre `final_dataset.csv` para responder às seis perguntas de pesquisa. Para cada pergunta, foram calculadas distribuições de frequência absoluta e relativa por grupo (profissional e amador), seguidas de testes estatísticos de associação. Para as perguntas P1 a P4 e P6, aplicou-se o teste qui-quadrado (χ²) de independência [@mchugh2013], que verifica se as distribuições de categorias entre os dois grupos diferem de forma estatisticamente significativa, adotando-se nível de significância α = 0,05. Para a pergunta P5, utilizou-se o coeficiente Kappa de Cohen [@cohen1960] para mensurar a concordância entre os rótulos atribuídos pelo LLM e as predições do XGBoost, com interpretação segundo a escala de @landis1977. Os resultados gerados por este script são apresentados e discutidos na Seção 4.
 
 # 4. Resultados e Discussão
 
-*[A preencher]*
+Esta seção apresenta os resultados da análise comparativa entre comentários de canais profissionais e amadores, organizados conforme as seis perguntas de pesquisa. A base de análise é composta pelos 16.719 comentários da segunda metade do corpus, classificados pelo XGBoost de forma genuína. Para cada pergunta, são descritos os dados observados, o resultado do teste estatístico e a interpretação dos achados.
+
+## 4.1) P1 — Sentimentos em Comentários de Alto Engajamento
+
+A primeira pergunta investiga se a distribuição de sentimentos em comentários com alto engajamento (likeCount ≥ 10) difere entre os dois grupos. Do total de 16.719 comentários, 679 atenderam ao critério: 323 de canais profissionais e 356 de canais amadores.
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| POSITIVO | 34,67% (112) | 36,52% (130) |
+| TANGENCIAL | 59,75% (193) | 59,83% (213) |
+| NEGATIVO | 5,57% (18) | 3,65% (13) |
+
+O teste qui-quadrado não revelou diferença estatisticamente significativa entre os grupos (χ² = 1,53, g.l. = 2, p = 0,465). Os comentários de alto engajamento apresentam distribuição de sentimentos praticamente idêntica entre profissionais e amadores, com predominância de TANGENCIAL (cerca de 60% em ambos) e proporções semelhantes de POSITIVO. Esse resultado indica que, quando os comentários alcançam ressonância coletiva suficiente para acumular curtidas expressivas, o perfil do criador não determina o tipo de reação emocional que os originou. O alto engajamento parece funcionar como um filtro que seleciona comentários que ressoam com a audiência de forma independente do tipo de canal.
+
+## 4.2) P2 — Distribuição Geral de Sentimentos na Base Completa
+
+A segunda pergunta investiga se a distribuição geral de sentimentos difere entre canais profissionais e amadores na base completa de 16.719 comentários.
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| POSITIVO | 33,43% (2.296) | 67,37% (6.637) |
+| TANGENCIAL | 61,71% (4.238) | 30,92% (3.046) |
+| NEGATIVO | 4,86% (334) | 1,71% (168) |
+
+O teste qui-quadrado revelou diferença altamente significativa entre os grupos (χ² = 1.887,33, g.l. = 2, p ≈ 0). Canais amadores concentram a maioria dos comentários positivos (67,37% versus 33,43% nos canais profissionais), enquanto canais profissionais geram proporcionalmente muito mais comentários tangenciais (61,71% versus 30,92%). A proporção de comentários negativos é baixa nos dois grupos, sendo ligeiramente superior nos canais profissionais (4,86% versus 1,71%). O predomínio de comentários positivos nos canais amadores pode estar associado ao tom mais próximo e identificável de criadores que compartilham vivências pessoais, gerando reações de acolhimento e gratidão por parte do público.
+
+## 4.3) P3 — Intensidade Emocional por Grupo por Grupo
+
+A terceira pergunta investiga se a intensidade emocional dos comentários difere entre os grupos. A análise foi restrita aos comentários classificados como POSITIVO ou NEGATIVO, excluindo TANGENCIAL, resultando em 2.630 comentários de canais profissionais e 6.805 de canais amadores.
+
+| Intensidade | Prof. total | Prof. POSITIVO | Prof. NEGATIVO |
+|---|---|---|---|
+| ALTA | 73,95% (1.945) | 80,62% (1.851) | 28,14% (94) |
+| MÉDIA | 16,08% (423) | 12,85% (295) | 38,32% (128) |
+| BAIXA | 9,96% (262) | 6,53% (150) | 33,53% (112) |
+
+| Intensidade | Amad. total | Amad. POSITIVO | Amad. NEGATIVO |
+|---|---|---|---|
+| ALTA | 84,10% (5.723) | 85,61% (5.682) | 24,40% (41) |
+| MÉDIA | 10,29% (700) | 9,45% (627) | 43,45% (73) |
+| BAIXA | 5,61% (382) | 4,94% (328) | 32,14% (54) |
+
+O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 130,13, g.l. = 2, p ≈ 0). Canais amadores apresentam maior concentração de reações de alta intensidade (84,10% versus 73,95% nos canais profissionais), indicando que o público responde com maior convicção emocional a esses criadores. Em ambos os grupos, comentários positivos concentram-se fortemente na faixa de alta intensidade (85,61% nos amadores e 80,62% nos profissionais). Os comentários negativos distribuem-se de forma mais equilibrada entre as três faixas, sugerindo que a discordância e a crítica tendem a ser expressas com menor certeza emocional do que o elogio ou a gratidão.
+
+## 4.4) P4 — Confiança Percebida por Grupo
+
+A quarta pergunta investiga se a proporção de comentários com sinais explícitos de alta confiança percebida difere entre os grupos. A análise foi restrita aos 1.311 comentários com sinal explícito de credibilidade (ALTA ou BAIXA), excluindo a categoria NEUTRA. Dos 16.719 comentários do dataset, 92,2% resultaram em NEUTRA, indicando ausência de termos explícitos de credibilidade detectados pela heurística.
+
+| Confiança | Profissional | Amador |
+|---|---|---|
+| ALTA | 62,24% (455) | 75,69% (439) |
+| BAIXA | 37,76% (276) | 24,31% (141) |
+
+O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 26,34, g.l. = 1, p ≈ 0). Entre os comentários com sinal explícito de credibilidade, canais amadores concentram maior proporção de alta confiança percebida (75,69% versus 62,24% nos canais profissionais). A interpretação desse resultado exige cautela: por ser a heurística baseada em palavras-chave, ela não captura sinais implícitos ou contextuais de credibilidade, o que contribui diretamente para a alta proporção de comentários classificados como NEUTRA. Os achados desta pergunta referem-se, portanto, a um subconjunto restrito do corpus e devem ser lidos com essa limitação em vista.
+
+## 4.5) P5 — Concordância entre LLM e XGBoost
+
+
+
+A quinta pergunta avalia a consistência entre os rótulos atribuídos pelo LLM e as predições do XGBoost sobre a segunda metade do corpus. Dos 16.719 comentários, 14.178 (84,8%) receberam o mesmo rótulo pelos dois sistemas. O coeficiente Kappa de Cohen foi de 0,7163, situando-se na faixa de concordância substancial (0,61 a 0,80) conforme a escala de @landis1977.
+
+| LLM \ XGBoost | POSITIVO | TANGENCIAL | NEGATIVO |
+|---|---|---|---|
+| POSITIVO | 8.320 | 942 | 59 |
+| TANGENCIAL | 523 | 5.603 | 188 |
+| NEGATIVO | 90 | 739 | 255 |
+
+A análise da matriz de confusão revela que o principal padrão de discordância concentra-se na classe NEGATIVO: dos 1.084 comentários rotulados como NEGATIVO pelo LLM, apenas 255 (23,5%) receberam o mesmo rótulo do XGBoost, enquanto 739 (68,2%) foram classificados como TANGENCIAL. Esse comportamento reflete a dificuldade do classificador em distinguir comentários negativos de tangenciais, possivelmente porque ambas as classes compartilham características linguísticas semelhantes (ausência de marcadores afetivos positivos explícitos) e porque NEGATIVO representa menos de 5% dos dados de treinamento. Para as classes POSITIVO e TANGENCIAL, a concordância é substancialmente maior (recall de 89,3% e 88,7%, respectivamente), confirmando que o pipeline é mais robusto para as classes majoritárias.
+
+## 4.6) P6 — Proporção de Comentários Tangenciais por Grupo
+
+A sexta pergunta investiga especificamente se a proporção de comentários tangenciais difere entre canais profissionais e amadores. Os dados utilizados são os mesmos da base completa analisada em P2 (n = 16.719), e o teste qui-quadrado é compartilhado (χ² = 1.887,33, g.l. = 2, p ≈ 0). O foco desta pergunta recai sobre a dimensão tangencial da distribuição: canais profissionais apresentam proporção de comentários tangenciais significativamente superior à dos canais amadores (61,71% versus 30,92%), diferença que representa quase o dobro. Esse resultado indica que o público de canais profissionais tende a usar os vídeos como ponto de partida para relatos pessoais e reflexões sobre o tema, sem necessariamente emitir julgamento direto sobre o conteúdo assistido, comportamento menos frequente nos canais amadores, onde o engajamento positivo é predominante.
 
 # 5. Conclusão
 
