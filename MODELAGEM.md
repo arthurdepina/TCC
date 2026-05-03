@@ -17,7 +17,8 @@
 6. [Script 07 — Construção do dataset rotulado](#6-script-07--construção-do-dataset-rotulado)
 7. [Script 08 — Confiança Percebida (heurística)](#7-script-08--confiança-percebida-heurística)
 8. [Dataset final](#8-dataset-final)
-9. [Próximos passos](#9-próximos-passos)
+9. [Script 09 — Análise de Resultados](#9-script-09--análise-de-resultados)
+10. [Próximos passos](#10-próximos-passos)
 
 ---
 
@@ -514,143 +515,155 @@ genuínas, não memorização.
 
 ---
 
-## 9. Próximos passos
+## 9. Script 09 — Análise de Resultados
 
-### Análise comparativa (script 08 — não implementado)
+**Arquivo:** `scripts/09_analyze_results.py`
 
-> O script 08 não foi implementado neste repositório. A análise pode ser
-> conduzida diretamente em um Jupyter Notebook ou ferramenta de visualização
-> a partir do `final_dataset.csv`, que já contém todas as colunas
-> necessárias.
+### O que faz
 
-A análise deve responder as 4 perguntas de pesquisa do TCC:
+Lê `final_dataset.csv` e responde as 6 perguntas de pesquisa do TCC, gerando
+um arquivo CSV por análise em `data/processed/results/`. Cada arquivo contém
+duas visões — percentual e valor absoluto — identificadas pela coluna `visao`.
+Um arquivo consolidado (`estatisticas.csv`) reúne todos os testes estatísticos.
 
----
+### Perguntas respondidas
 
-#### Pergunta 1 — Os comentários mais engajados expressam sentimentos diferentes entre profissionais e amadores?
+| # | Pergunta | Filtro aplicado | Coluna analisada |
+|---|---|---|---|
+| P1 | Comentários mais engajados expressam sentimentos diferentes entre os grupos? | `likeCount >= 10` | `label_xgb` |
+| P2 | Conteúdos de profissionais geram maior proporção de comentários positivos? | base completa | `label_xgb` |
+| P3 | A intensidade emocional difere entre profissionais e amadores? | `label_xgb` IN (POSITIVO, NEGATIVO) | `intensidade` |
+| P4 | Conteúdos de profissionais apresentam mais indícios de confiabilidade percebida? | `confianca_percebida` IN (ALTA, BAIXA) | `confianca_percebida` |
+| P5 | Como se compara a categorização da LLM com a do XGBoost? | base completa | `label_llm` × `label_xgb` |
+| P6 | Conteúdos de profissionais geram mais relatos pessoais (TANGENCIAL)? | base completa | `label_xgb` |
 
-**Base:** `final_dataset.csv`, filtrado por `likeCount > 50`
+> P2 e P6 compartilham o mesmo CSV pois usam a mesma base e mesma estrutura de tabela.
 
-**Método:**
-```python
-high_like = df[df["likeCount"] > 50]
-high_like.groupby("channel_type")["label"].value_counts(normalize=True)
-```
+### Decisões técnicas
 
-**Visualização:** gráfico de barras agrupadas (profissional × amador), apenas
-comentários com likes > 50, excluindo DESCARTAVEL.
+| Decisão | Escolha | Justificativa |
+|---|---|---|
+| Testes estatísticos | Chi-quadrado (P1–P4, P6) e Cohen's Kappa (P5) | Chi² compara proporções entre grupos; Kappa mede concordância corrigida por acaso |
+| Denominador dos percentuais | Total do grupo no contexto do filtro aplicado | Garante que percentuais somem 100% dentro de cada grupo |
+| Filtro P3 | Exclui TANGENCIAL | Intensidade emocional só é interpretável para sentimentos diretos (positivo/negativo) |
+| Filtro P4 | Exclui NEUTRA | A análise foca nos comentários com sinal claro de credibilidade — NEUTRA não discrimina |
+| Threshold P1 | `likeCount >= 10` | Equilibra tamanho de amostra (323 profissional / 356 amador) e representatividade de engajamento |
+| P3 — estrutura | 4 tabelas (profissional × amador × percentual × absoluto) | Cada grupo tem seu próprio arquivo; colunas: Total / Positivo / Negativo |
 
----
+### Arquivos gerados
 
-#### Pergunta 2 — Conteúdos de profissionais geram maior proporção de comentários positivos?
-
-**Base:** `final_dataset.csv`, excluindo DESCARTAVEL
-
-**Método:**
-```python
-sent = df[df["label"] != "DESCARTAVEL"]
-sent.groupby("channel_type")["label"].value_counts(normalize=True)
-```
-
-**Teste estatístico sugerido:** qui-quadrado (χ²) para verificar se a diferença
-entre proporções é estatisticamente significativa.
-
-**Visualização:** gráfico de barras empilhadas (proporção de cada label por grupo).
-
----
-
-#### Pergunta 3 — A intensidade emocional difere entre profissionais e amadores?
-
-**Base:** `final_dataset.csv`, coluna `confidence` (apenas não-DESCARTAVEL)
-
-**Método:**
-```python
-sent = df[df["label"] != "DESCARTAVEL"]
-sent.groupby("channel_type")["confidence"].describe()
-```
-
-Calcular a proporção de comentários de intensidade ALTA/MÉDIA/BAIXA por grupo:
-```python
-def intensidade(c):
-    if c > 0.80:  return "ALTA"
-    if c >= 0.60: return "MEDIA"
-    return "BAIXA"
-
-sent["intensidade"] = sent["confidence"].apply(intensidade)
-sent.groupby(["channel_type", "intensidade"]).size()
-```
-
-**Teste estatístico sugerido:** Mann-Whitney U (comparação de medianas de
-distribuições não-normais).
-
-**Visualizações:** boxplot de `confidence` por `channel_type` e por `label`;
-gráfico de barras da distribuição de intensidade por grupo.
-
----
-
-#### Pergunta 4 — Conteúdos de profissionais apresentam mais indícios de confiabilidade percebida?
-
-**Base:** `final_dataset.csv`, coluna `text_clean`, apenas POSITIVO
-
-**Método — heurística de palavras-chave:**
-
-Buscar termos associados a confiabilidade percebida e calcular a taxa de
-ocorrência por grupo.
-
-```python
-TERMOS_CONFIABILIDADE = [
-    "explicou", "explicação", "faz sentido", "confio", "confiança",
-    "científico", "embasado", "comprovado", "especialista", "referência",
-    "pesquisa", "estudo", "dados", "evidência", "profissional",
-    "recomendo", "recomenda", "seguro", "correto", "verdade"
-]
-
-pos = df[df["label"] == "POSITIVO"].copy()
-pos["tem_confiabilidade"] = pos["text_clean"].str.lower().apply(
-    lambda t: any(term in t for term in TERMOS_CONFIABILIDADE)
-)
-pos.groupby("channel_type")["tem_confiabilidade"].mean()
-```
-
-> **Limitação conhecida:** heurística baseada em palavras-chave é sensível à
-> escolha dos termos e não captura contexto. Os resultados devem ser
-> interpretados como indicativos, não conclusivos.
-
-**Visualização:** gráfico de barras com proporção de comentários com
-indicadores de confiabilidade por grupo.
-
----
-
-#### Visualizações adicionais recomendadas
-
-- **WordCloud** por `channel_type` × `label`: termos mais frequentes em
-  comentários positivos de profissionais vs. amadores
-- **Distribuição de likeCount** por label e channel_type (escala log)
-- **Tabela resumo final** com todas as métricas lado a lado:
-  profissional vs. amador em proporção de sentimentos, intensidade média
-  e taxa de confiabilidade percebida
-
----
-
-### Revisão humana (pendente)
-
-Os 600 comentários amostrados (`para_revisao_arthur.csv` e `para_revisao_ana.csv`)
-devem ser revisados manualmente. Após a revisão, calcular o **Cohen's Kappa**
-entre LLM e revisores para validar a qualidade da rotulação:
-
-```python
-from sklearn.metrics import cohen_kappa_score
-kappa = cohen_kappa_score(df["label_llm"], df["label_revisao"])
-```
-
-Interpretação do Kappa:
-
-| Faixa | Interpretação |
+| Arquivo | Conteúdo |
 |---|---|
-| > 0,80 | Concordância quase perfeita |
-| 0,60 – 0,80 | Concordância substancial |
-| 0,40 – 0,60 | Concordância moderada |
-| < 0,40 | Concordância fraca |
+| `p1_engajamento.csv` | Sentimentos (POSITIVO / NEGATIVO / TANGENCIAL) em comentários com likeCount ≥ 10 |
+| `p2_p6_sentimentos_base.csv` | Distribuição de todos os rótulos na base completa por grupo |
+| `p3_intensidade_profissional.csv` | Intensidade emocional — canais profissionais (Total / Positivo / Negativo) |
+| `p3_intensidade_amador.csv` | Intensidade emocional — canais amadores (Total / Positivo / Negativo) |
+| `p4_confianca.csv` | Confiança percebida ALTA e BAIXA por grupo |
+| `p5_concorda.csv` | Concordância geral LLM vs XGBoost (True / False) |
+| `p5_matriz_confusao.csv` | Matriz de confusão 3×3 (LLM nas linhas, XGBoost nas colunas) |
+| `p5_kappa.csv` | Cohen's Kappa e interpretação |
+| `estatisticas.csv` | Todos os testes estatísticos consolidados |
+
+### Resultados obtidos
+
+#### P1 — Comentários engajados (likeCount ≥ 10)
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| Positivo | 34,67% (112) | 36,52% (130) |
+| Negativo | 5,57% (18) | 3,65% (13) |
+| Tangencial | 59,75% (193) | 59,83% (213) |
+
+**Chi² = 1,53, p = 0,4653 — Não significativa.** A distribuição de sentimentos
+em comentários engajados é estatisticamente semelhante entre os dois grupos.
+
+---
+
+#### P2 — Proporção de positivos na base completa
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| Positivo | 33,43% (2.296) | 67,37% (6.637) |
+| Negativo | 4,86% (334) | 1,71% (168) |
+| Tangencial | 61,71% (4.238) | 30,92% (3.046) |
+
+**Chi² = 1.887,33, p ≈ 0 — Significativa.** Canais amadores geram proporção
+muito maior de comentários positivos; canais profissionais concentram
+comentários tangenciais (relatos pessoais e referências ao tema).
+
+---
+
+#### P3 — Intensidade emocional
+
+**Canais profissionais** (n=2.630 | pos=2.296 | neg=334):
+
+| Intensidade | Total | Positivo | Negativo |
+|---|---|---|---|
+| Alta | 73,95% | 80,62% | 28,14% |
+| Média | 16,08% | 12,85% | 38,32% |
+| Baixa | 9,96% | 6,53% | 33,53% |
+
+**Canais amadores** (n=6.805 | pos=6.637 | neg=168):
+
+| Intensidade | Total | Positivo | Negativo |
+|---|---|---|---|
+| Alta | 84,10% | 85,61% | 24,40% |
+| Média | 10,29% | 9,45% | 43,45% |
+| Baixa | 5,61% | 4,94% | 32,14% |
+
+**Chi² = 130,13, p ≈ 0 — Significativa.** Canais amadores têm maior proporção
+de comentários de alta intensidade. Em ambos os grupos, comentários negativos
+distribuem-se de forma mais equilibrada entre as três faixas de intensidade.
+
+---
+
+#### P4 — Confiança percebida (ALTA / BAIXA)
+
+| Confiança | Profissional | Amador |
+|---|---|---|
+| Alta | 62,24% (455) | 75,69% (439) |
+| Baixa | 37,76% (276) | 24,31% (141) |
+
+**Chi² = 26,34, p ≈ 0 — Significativa.** Canais amadores apresentam maior
+proporção de comentários com sinais de alta confiança percebida. Nota: 92%
+da base é NEUTRA — os percentuais acima se referem apenas aos 1.311
+comentários com sinal explícito de credibilidade.
+
+---
+
+#### P5 — Concordância LLM vs XGBoost
+
+**Concordância geral:** 14.178 / 16.719 comentários **(84,8%)**
+
+**Matriz de confusão** (linhas = LLM, colunas = XGBoost):
+
+|  | POSITIVO | TANGENCIAL | NEGATIVO |
+|---|---|---|---|
+| **POSITIVO** | 8.320 | 942 | 59 |
+| **TANGENCIAL** | 523 | 5.603 | 188 |
+| **NEGATIVO** | 90 | 739 | 255 |
+
+Principal padrão de discordância: XGBoost classifica como TANGENCIAL
+739 dos 1.084 comentários que a LLM rotulou como NEGATIVO (recall de 24%
+para NEGATIVO — já documentado no script 06b).
+
+**Cohen's Kappa = 0,7163 — Concordância Substancial (0,60–0,80).**
+A concordância real supera substancialmente o que seria esperado por acaso,
+validando o uso do XGBoost como classificador complementar à LLM.
+
+---
+
+#### P6 — Comentários TANGENCIAIS por grupo
+
+Coberto pelo mesmo CSV de P2. Profissional: 61,71% (4.238) vs Amador: 30,92% (3.046).
+Diferença altamente significativa — discutida junto a P2.
+
+---
+
+## 10. Próximos passos
+
+A análise quantitativa está concluída. Os resultados em `data/processed/results/`
+estão prontos para uso na escrita do TCC.
 
 ---
 
