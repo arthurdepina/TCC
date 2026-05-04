@@ -45,11 +45,37 @@
 
 ---
 
-## 3. Demais referências — verificadas e confirmadas corretas
+## 3. Referência `afonso2019` — campos complementados
+
+| Campo | Antes | Depois |
+|---|---|---|
+| Autores | `Afonso, A. R. and Duque, C. G.` | `Afonso, Alexandre Ribeiro and Duque, Cláudio Gottschalg` |
+| `number` | ausente | `3` |
+| `doi` | ausente | `10.18225/ci.inf.v48i3.4315` |
+| `address` | `Brasília` | removido (campo não padrão para `@article`) |
+
+**Fonte:** página do artigo em https://revista.ibict.br/ciinf/article/view/4315. Páginas não publicadas (numeração por artigo na revista). **Recomenda-se validar manualmente.**
+
+---
+
+## 4. Referência `wang2023` → renomeada `tan2023` — erro grave corrigido
+
+| Campo | Antes (errado) | Depois (correto) |
+|---|---|---|
+| Chave | `wang2023` | `tan2023` |
+| Autores | `Wang, Ying and others` | `Tan, Kian Long and Lee, Chin Poo and Lim, Kian Ming` |
+| `doi` | ausente | `10.3390/app13074550` |
+
+O primeiro autor não é Wang — é Tan. A chave `@wang2023` estava errada por completo. Todas as 4 ocorrências de `@wang2023` no `artigo.md` foram substituídas por `@tan2023`.
+
+**Fonte:** CrossRef API via `api.crossref.org/works/10.3390/app13074550` (fonte autoritativa para DOIs). **Recomenda-se validar manualmente acessando https://www.mdpi.com/2076-3417/13/7/4550**
+
+---
+
+## 5. Demais referências — verificadas e confirmadas corretas
 
 | Chave | Referência | Status |
 |---|---|---|
-| `afonso2019` | Análise de sentimentos em comentários do YouTube — Ciência da Informação | Correto |
 | `souza2021` | Sentiment Analysis on Brazilian Portuguese User Reviews — arXiv:2112.05459 | Correto |
 | `ding2023` | Is GPT-3 a Good Data Annotator? — ACL 2023 | Correto |
 | `tan2024` | LLMs for Data Annotation and Synthesis: A Survey — EMNLP 2024 | Correto |
@@ -69,12 +95,3 @@
 | `mchugh2013` | The chi-square test — Biochemia Medica | Correto |
 | `landis1977` | The measurement of observer agreement — Biometrics | Correto |
 
----
-
-## 4. Ponto de atenção — wang2023 (requer verificação manual)
-
-A revisão levantou uma dúvida sobre os autores da referência `wang2023`. O bib registra `Wang, Ying and others` para o artigo "A survey of sentiment analysis: approaches, datasets, and future research" (Applied Sciences 13(7), 4550, 2023). **Recomenda-se acessar a URL abaixo e confirmar se o primeiro autor é de fato Wang Ying:**
-
-`https://www.mdpi.com/2076-3417/13/7/4550`
-
-Se os autores estiverem errados, o campo `author` do `wang2023` no bib precisará ser corrigido. As afirmações sustentadas por essa referência no artigo (generalização de técnicas de NLP para análise de sentimentos) são plausíveis e compatíveis com um survey da área, independentemente de quem sejam os autores exatos.
