@@ -245,7 +245,7 @@ A primeira pergunta investiga se a distribuição de sentimentos em comentários
 | TANGENCIAL | 59,75% (193) | 59,83% (213) |
 | NEGATIVO | 5,57% (18) | 3,65% (13) |
 
-O teste qui-quadrado não revelou diferença estatisticamente significativa entre os grupos (χ² = 1,53, g.l. = 2, p = 0,465). Os comentários de alto engajamento apresentam distribuição de sentimentos praticamente idêntica entre profissionais e amadores, com predominância de TANGENCIAL (cerca de 60% em ambos) e proporções semelhantes de POSITIVO. Esse resultado indica que, quando os comentários alcançam ressonância coletiva suficiente para acumular curtidas expressivas, o perfil do criador não determina o tipo de reação emocional que os originou. O alto engajamento parece funcionar como um filtro que seleciona comentários que ressoam com a audiência de forma independente do tipo de canal.
+O teste qui-quadrado não revelou diferença estatisticamente significativa entre os grupos (χ² = 1,53, g.l. = 2, p = 0,465; V de Cramér = 0,047, efeito negligível). Os comentários de alto engajamento apresentam distribuição de sentimentos praticamente idêntica entre profissionais e amadores, com predominância de TANGENCIAL (cerca de 60% em ambos) e proporções semelhantes de POSITIVO. Esse resultado indica que, quando os comentários alcançam ressonância coletiva suficiente para acumular curtidas expressivas, o perfil do criador não determina o tipo de reação emocional que os originou. O alto engajamento parece funcionar como um filtro que seleciona comentários que ressoam com a audiência de forma independente do tipo de canal.
 
 ## 4.2) P2 — Distribuição Geral de Sentimentos na Base Completa
 
@@ -257,7 +257,7 @@ A segunda pergunta investiga se a distribuição geral de sentimentos difere ent
 | TANGENCIAL | 61,71% (4.238) | 30,92% (3.046) |
 | NEGATIVO | 4,86% (334) | 1,71% (168) |
 
-O teste qui-quadrado revelou diferença altamente significativa entre os grupos (χ² = 1.887,33, g.l. = 2, p ≈ 0). Canais amadores concentram a maioria dos comentários positivos (67,37% versus 33,43% nos canais profissionais), enquanto canais profissionais geram proporcionalmente muito mais comentários tangenciais (61,71% versus 30,92%). A proporção de comentários negativos é baixa nos dois grupos, sendo ligeiramente superior nos canais profissionais (4,86% versus 1,71%). O predomínio de comentários positivos nos canais amadores pode estar associado ao tom mais próximo e identificável de criadores que compartilham vivências pessoais, gerando reações de acolhimento e gratidão por parte do público.
+O teste qui-quadrado revelou diferença altamente significativa entre os grupos (χ² = 1.887,33, g.l. = 2, p ≈ 0; V de Cramér = 0,336, efeito moderado). Canais amadores concentram a maioria dos comentários positivos (67,37% versus 33,43% nos canais profissionais), enquanto canais profissionais geram proporcionalmente muito mais comentários tangenciais (61,71% versus 30,92%). A proporção de comentários negativos é baixa nos dois grupos, sendo ligeiramente superior nos canais profissionais (4,86% versus 1,71%). O predomínio de comentários positivos nos canais amadores pode estar associado ao tom mais próximo e identificável de criadores que compartilham vivências pessoais, gerando reações de acolhimento e gratidão por parte do público.
 
 ## 4.3) P3 — Certeza Classificatória por Grupo
 
@@ -275,7 +275,7 @@ A terceira pergunta investiga se a certeza classificatória do XGBoost difere en
 | MÉDIA | 10,29% (700) | 9,45% (627) | 43,45% (73) |
 | BAIXA | 5,61% (382) | 4,94% (328) | 32,14% (54) |
 
-O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 130,13, g.l. = 2, p ≈ 0). Comentários de canais amadores são classificados pelo modelo com maior certeza (84,10% na faixa ALTA versus 73,95% nos canais profissionais), sugerindo que seus padrões linguísticos são mais homogêneos e típicos das classes POSITIVO e NEGATIVO. Em ambos os grupos, comentários positivos concentram-se fortemente na faixa de alta certeza (85,61% nos amadores e 80,62% nos profissionais), enquanto comentários negativos distribuem-se de forma mais equilibrada entre as três faixas, o que indica que os padrões linguísticos de discordância e crítica são menos prototípicos e mais difíceis de separar pelo classificador.
+O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 130,13, g.l. = 2, p ≈ 0; V de Cramér = 0,117, efeito pequeno). Comentários de canais amadores são classificados pelo modelo com maior certeza (84,10% na faixa ALTA versus 73,95% nos canais profissionais), sugerindo que seus padrões linguísticos são mais homogêneos e típicos das classes POSITIVO e NEGATIVO. Em ambos os grupos, comentários positivos concentram-se fortemente na faixa de alta certeza (85,61% nos amadores e 80,62% nos profissionais), enquanto comentários negativos distribuem-se de forma mais equilibrada entre as três faixas, o que indica que os padrões linguísticos de discordância e crítica são menos prototípicos e mais difíceis de separar pelo classificador.
 
 ## 4.4) P4 — Confiança Percebida por Grupo
 
@@ -286,7 +286,7 @@ A quarta pergunta investiga se a proporção de comentários com sinais explíci
 | ALTA | 62,24% (455) | 75,69% (439) |
 | BAIXA | 37,76% (276) | 24,31% (141) |
 
-O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 26,34, g.l. = 1, p ≈ 0). Entre os comentários com sinal explícito de credibilidade, canais amadores concentram maior proporção de alta confiança percebida (75,69% versus 62,24% nos canais profissionais). A interpretação desse resultado exige cautela: por ser a heurística baseada em palavras-chave, ela não captura sinais implícitos ou contextuais de credibilidade, o que contribui diretamente para a alta proporção de comentários classificados como NEUTRA. Os achados desta pergunta referem-se, portanto, a um subconjunto restrito do corpus e devem ser lidos com essa limitação em vista.
+O teste qui-quadrado revelou diferença significativa entre os grupos (χ² = 26,34, g.l. = 1, p ≈ 0; V de Cramér = 0,142, efeito pequeno). Entre os comentários com sinal explícito de credibilidade, canais amadores concentram maior proporção de alta confiança percebida (75,69% versus 62,24% nos canais profissionais). A interpretação desse resultado exige cautela: por ser a heurística baseada em palavras-chave, ela não captura sinais implícitos ou contextuais de credibilidade, o que contribui diretamente para a alta proporção de comentários classificados como NEUTRA. Os achados desta pergunta referem-se, portanto, a um subconjunto restrito do corpus e devem ser lidos com essa limitação em vista.
 
 ## 4.5) P5 — Concordância entre LLM e XGBoost
 
@@ -304,7 +304,7 @@ A análise da matriz de confusão revela que o principal padrão de discordânci
 
 ## 4.6) P6 — Proporção de Comentários Tangenciais por Grupo
 
-A sexta pergunta investiga especificamente se a proporção de comentários tangenciais difere entre canais profissionais e amadores. Os dados utilizados são os mesmos da base completa analisada em P2 (n = 16.719), e o teste qui-quadrado é compartilhado (χ² = 1.887,33, g.l. = 2, p ≈ 0). O foco desta pergunta recai sobre a dimensão tangencial da distribuição: canais profissionais apresentam proporção de comentários tangenciais significativamente superior à dos canais amadores (61,71% versus 30,92%), diferença que representa quase o dobro. Esse resultado indica que o público de canais profissionais tende a usar os vídeos como ponto de partida para relatos pessoais e reflexões sobre o tema, sem necessariamente emitir julgamento direto sobre o conteúdo assistido, comportamento menos frequente nos canais amadores, onde o engajamento positivo é predominante.
+A sexta pergunta investiga especificamente se a proporção de comentários tangenciais difere entre canais profissionais e amadores. Os dados utilizados são os mesmos da base completa analisada em P2 (n = 16.719), e o teste qui-quadrado é compartilhado (χ² = 1.887,33, g.l. = 2, p ≈ 0; V de Cramér = 0,336, efeito moderado). O foco desta pergunta recai sobre a dimensão tangencial da distribuição: canais profissionais apresentam proporção de comentários tangenciais significativamente superior à dos canais amadores (61,71% versus 30,92%), diferença que representa quase o dobro. Esse resultado indica que o público de canais profissionais tende a usar os vídeos como ponto de partida para relatos pessoais e reflexões sobre o tema, sem necessariamente emitir julgamento direto sobre o conteúdo assistido, comportamento menos frequente nos canais amadores, onde o engajamento positivo é predominante.
 
 # 5. Conclusão
 
