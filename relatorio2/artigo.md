@@ -1,6 +1,7 @@
 ---
 title: "Análise comparativa do impacto de conteúdos sobre saúde mental no YouTube por meio de comentários: profissionais vs. não profissionais"
 author:
+  - "Ana Clara Melo Senne^1^"
   - "Arthur de Pina Balduino Leitão^1^"
   - "Carolina Toledo Ferraz^1,2^"
 affiliation:
@@ -192,7 +193,7 @@ A regra central do *prompt* de sistema orientava o modelo a distinguir entre rea
 
 ## 3.6) Amostragem para Revisão Humana
 
-Para estimar a confiabilidade da rotulação automática, o script `04_sample_for_review.py` gerou uma amostra estratificada de **600 comentários** para revisão manual, dividida igualitariamente entre dois revisores (300 cada). A estratificação priorizou a representação de categorias mais raras e potencialmente ambíguas, em especial NEGATIVO e comentários curtos, bem como comentários de alto engajamento (`likeCount` elevado), que têm maior peso analítico. A revisão humana permitirá calcular métricas de concordância entre revisores e entre humanos e LLM, validando a qualidade do *ground truth* utilizado na etapa de classificação supervisionada.
+Para estimar a confiabilidade da rotulação automática, o script `04_sample_for_review.py` gerou uma amostra estratificada de **600 comentários** para revisão manual, dividida igualitariamente entre dois revisores (300 cada). A estratificação priorizou a representação de categorias mais raras e potencialmente ambíguas, em especial NEGATIVO e comentários curtos, bem como comentários de alto engajamento (`likeCount` elevado), que têm maior peso analítico. Após a revisão humana, foi possível calcular métricas de concordância entre revisores e entre humanos e LLM, validando a qualidade do *ground truth* utilizado na etapa de classificação supervisionada.
 
 ## 3.7) Geração de *Embeddings* com BERTimbau
 
@@ -258,7 +259,7 @@ A segunda pergunta investiga se a distribuição geral de sentimentos difere ent
 
 O teste qui-quadrado revelou diferença altamente significativa entre os grupos (χ² = 1.887,33, g.l. = 2, p ≈ 0). Canais amadores concentram a maioria dos comentários positivos (67,37% versus 33,43% nos canais profissionais), enquanto canais profissionais geram proporcionalmente muito mais comentários tangenciais (61,71% versus 30,92%). A proporção de comentários negativos é baixa nos dois grupos, sendo ligeiramente superior nos canais profissionais (4,86% versus 1,71%). O predomínio de comentários positivos nos canais amadores pode estar associado ao tom mais próximo e identificável de criadores que compartilham vivências pessoais, gerando reações de acolhimento e gratidão por parte do público.
 
-## 4.3) P3 — Intensidade Emocional por Grupo por Grupo
+## 4.3) P3 — Intensidade Emocional por Grupo
 
 A terceira pergunta investiga se a intensidade emocional dos comentários difere entre os grupos. A análise foi restrita aos comentários classificados como POSITIVO ou NEGATIVO, excluindo TANGENCIAL, resultando em 2.630 comentários de canais profissionais e 6.805 de canais amadores.
 
