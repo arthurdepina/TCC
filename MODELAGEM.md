@@ -1,7 +1,8 @@
 # Modelagem e Classificação — TCC
 
 > **Contexto:** Este documento descreve as etapas de geração de embeddings,
-> treinamento e construção do dataset final, correspondendo aos scripts 05, 06 e 07.
+> treinamento, construção do dataset final e extração de confiança percebida,
+> correspondendo aos scripts 05, 06, 06b, 07 e 08.
 > Registra decisões técnicas, resultados obtidos e justificativas.
 
 ---
@@ -11,11 +12,13 @@
 1. [Visão geral do pipeline](#1-visão-geral-do-pipeline)
 2. [Métricas de avaliação](#2-métricas-de-avaliação)
 3. [Script 05 — Geração de embeddings BERTimbau](#3-script-05--geração-de-embeddings-bertimbau)
-4. [Script 06 — Treinamento do classificador XGBoost](#4-script-06--treinamento-do-classificador-xgboost)
-5. [Script 06b — Avaliação por divisão de metades](#5-script-06b--avaliação-por-divisão-de-metades)
-6. [Script 07 — Construção do dataset final](#6-script-07--construção-do-dataset-final)
-7. [Dataset final](#7-dataset-final)
-8. [Próximos passos](#8-próximos-passos)
+4. [Script 06 — Validação Cruzada do Pipeline](#4-script-06--validação-cruzada-do-pipeline)
+5. [Script 06b — Treinamento e Predição (Half-Split)](#5-script-06b--treinamento-e-predição-half-split)
+6. [Script 07 — Construção do dataset rotulado](#6-script-07--construção-do-dataset-rotulado)
+7. [Script 08 — Confiança Percebida (heurística)](#7-script-08--confiança-percebida-heurística)
+8. [Dataset final](#8-dataset-final)
+9. [Script 09 — Análise de Resultados](#9-script-09--análise-de-resultados)
+10. [Próximos passos](#10-próximos-passos)
 
 ---
 
@@ -27,37 +30,49 @@ llm_labeled_comments_v3.csv  (42.372 comentários — 100% rotulados pelo LLM)
          ├── 34.491 não-DESCARTAVEL
          │         │
          │         ▼ Script 05
-         │   embeddings.npy  (34.491 × 768)
-         │   labels.npy
+         │   embeddings.npy  (34.491 × 768)  /  labels.npy
          │         │
-         │         ▼ Script 06
-         │   XGBoost treinado + avaliado (cross-validation 5-fold)
-         │   F1-macro: 73.3%  |  Acurácia: 86.0%
-         │   XGBoost.pkl salvo
-         │         │
-         │         ▼ Script 07
-         │   Confiança calculada para os 34.491 (predict_proba)
+         │    ┌────┴────┐
+         │    │         │
+         │    ▼         ▼
+         │  Script 06             Script 06b
+         │  cv_validation         train_and_predict
+         │  CV 5-fold             Treina na 1ª metade (17.772)
+         │  F1-macro: 73.3%       Prediz a 2ª metade (16.719)
+         │  Acurácia: 86.0%       XGBoost_half.pkl salvo
+         │  (validação acadêmica) second_half_predictions.csv
+         │    │
+         │    └─────────────────────┐
+         │                         ▼ Script 07
+         │               Join com preprocessed_comments.csv
+         │               + cálculo de keywords
          │
-         └── 7.881 DESCARTAVEL  →  confidence = None
-                   │
-                   ▼
-         all_labeled_comments.csv
-         (42.372 comentários: label LLM + confidence XGBoost)
+         └── 7.881 DESCARTAVEL  →  excluídos do dataset final
+                                            │
+                                            ▼
+                                   final_dataset.csv
+                         (16.719 comentários — apenas 2ª metade:
+                          label LLM + label XGBoost + confidence + keywords)
 ```
 
-### Decisão: Opção A
+### Decisão: pipeline em duas etapas
 
-O LLM rotulou **100% dos comentários** (42.372). O XGBoost foi treinado sobre
-esses rótulos com cross-validation e serve como:
+O LLM rotulou **100% dos comentários** (42.372) — incluindo os 7.881 DESCARTAVEL
+que o XGBoost não conseguiria identificar.
 
-1. **Componente técnico validado** — F1-macro 73,3% no CV demonstra capacidade
-   de generalização do pipeline BERTimbau + XGBoost
-2. **Gerador de confiança** — o `predict_proba` do XGBoost é usado para
-   calcular a intensidade emocional de cada comentário
+O pipeline separa claramente dois papéis:
 
-O dataset final usa os **rótulos LLM** como fonte principal de análise.
-A alternativa (XGBoost classificar a segunda metade) foi descartada pois o
-modelo não consegue identificar DESCARTAVEL, contaminando ~16% dos dados.
+1. **Script 06 — validação acadêmica:** CV 5-fold sobre os 34.491 não-DESCARTAVEL
+   demonstra que o pipeline BERTimbau + XGBoost generaliza (F1-macro 73,3%).
+   Nenhum modelo é salvo — essa etapa existe apenas para citar no TCC.
+
+2. **Script 06b — classificação genuína:** XGBoost treina na 1ª metade (17.772)
+   e prediz a 2ª metade (16.719) sem ter visto esses dados. O `confidence`
+   produzido aqui é real e é usado como proxy de intensidade emocional.
+
+O **dataset final** (`final_dataset.csv`) contém exclusivamente os 16.719
+comentários da 2ª metade — com rótulo LLM (referência) e rótulo XGBoost
+(predição genuína) para comparação.
 
 ---
 
@@ -176,14 +191,15 @@ Tempo de execução   : ~2 minutos (GPU RTX 4060 Laptop)
 
 ---
 
-## 4. Script 06 — Treinamento do classificador XGBoost
+## 4. Script 06 — Validação Cruzada do Pipeline
 
-**Arquivo:** `scripts/06_train_classifier.py`
+**Arquivo:** `scripts/06_cv_validation.py`
 
 ### O que faz
 
-Treina o XGBoost sobre os embeddings BERTimbau com validação cruzada
-estratificada 5-fold e salva o modelo treinado.
+Avalia o pipeline BERTimbau + XGBoost via validação cruzada estratificada
+5-fold sobre os 34.491 não-DESCARTAVEL. Objetivo exclusivamente acadêmico:
+demonstrar a capacidade de generalização do pipeline. Nenhum modelo é salvo.
 
 ### Decisões técnicas
 
@@ -230,13 +246,12 @@ de forma mais consistente.
 
 | Arquivo | Descrição |
 |---|---|
-| `data/processed/models/XGBoost.pkl` | Modelo treinado no dataset completo |
 | `data/processed/models/resultados_cv.csv` | Métricas por fold |
-| `data/processed/models/relatorio_treino.txt` | Relatório completo da execução |
+| `data/processed/models/relatorio_cv.txt` | Relatório completo da execução |
 
 ---
 
-## 5. Script 06b — Avaliação por divisão de metades
+## 5. Script 06b — Treinamento e Predição (Half-Split)
 
 **Arquivo:** `scripts/06b_half_split_evaluation.py`
 
@@ -255,7 +270,7 @@ O script reutiliza os embeddings já gerados — sem rodar o BERTimbau novamente
 ### O que faz
 
 1. Divide `embeddings.npy` em treino (1ª metade) e teste (2ª metade) por `commentId`
-2. Treina um novo XGBoost (`XGBoost_half1.pkl`) apenas na 1ª metade
+2. Treina um novo XGBoost (`XGBoost_half.pkl`) apenas na 1ª metade
 3. Prediz rótulo + confiança para cada comentário da 2ª metade
 4. Compara previsões XGBoost com rótulos LLM — avaliação genuína
 5. Salva `second_half_predictions.csv` com label, confiança e intensidade
@@ -349,66 +364,123 @@ modelo tem alguma memorização, mas generaliza razoavelmente bem.
 
 | Arquivo | Descrição |
 |---|---|
-| `data/processed/models/XGBoost_half1.pkl` | Modelo treinado apenas na 1ª metade |
+| `data/processed/models/XGBoost_half.pkl` | Modelo treinado apenas na 1ª metade |
 | `data/processed/models/resultados_half_split.txt` | Relatório completo |
 | `data/processed/second_half_predictions.csv` | label_llm, label_xgb, confidence, intensidade, concorda |
 
 ---
 
-## 6. Script 07 — Construção do dataset final
+## 6. Script 07 — Construção do dataset rotulado
 
 **Arquivo:** `scripts/07_build_final_dataset.py`
 
-> O script original `07_classify_remaining.py` foi concebido para a Opção B
-> (XGBoost classifica a segunda metade). Com a adoção da Opção A (LLM rotula tudo),
-> foi substituído por este script de lógica simplificada.
-
 ### O que faz
 
-1. Carrega `embeddings.npy` e calcula confiança (`predict_proba`) para os
-   34.491 não-DESCARTAVEL — sem precisar rodar o BERTimbau novamente
-2. Reporta concordância XGBoost × LLM (informativa — XGBoost viu esses dados)
-3. Monta `all_labeled_comments.csv` com labels LLM + confiança XGBoost
+1. Carrega `second_half_predictions.csv` (saída do script 06b) — 16.719 comentários
+   com rótulo LLM, rótulo XGBoost, confiança e intensidade
+2. Cruza com `preprocessed_comments.csv` para obter `text`, `text_clean`,
+   `channel_type`, `likeCount` e `video_title`
+3. Calcula coluna `keywords` — termos de confiabilidade percebida encontrados
+   em `text_clean` (separados por ";")
+4. Salva `final_dataset.csv` pronto para análise
 
-### Concordância XGBoost × LLM (base de treino)
+### Termos de confiabilidade (heurística)
 
-> **Atenção:** O XGBoost foi treinado sobre esses dados — use o cross-validation
-> do script 06 como avaliação real. Esses números refletem memorização parcial.
+Usados para preencher a coluna `keywords`:
 
 ```
-              precision    recall  f1-score   support
-    NEGATIVO       0.96      1.00      0.98      1.783
-  TANGENCIAL       0.98      0.98      0.98     14.455
-    POSITIVO       0.99      0.98      0.99     18.253
-    accuracy                           0.98     34.491
+"explicou", "explicação", "faz sentido", "confio", "confiança",
+"científico", "embasado", "comprovado", "especialista", "referência",
+"pesquisa", "estudo", "dados", "evidência", "profissional",
+"recomendo", "recomenda", "seguro", "correto", "verdade"
 ```
 
-### Intensidade emocional
+### Arquivos gerados
 
-A confiança do XGBoost é usada como proxy de intensidade emocional:
-
-| Faixa | Intensidade | Contagem | % |
-|---|---|---|---|
-| > 0,80 | ALTA | 29.866 | 86,6% |
-| 0,60 – 0,80 | MÉDIA | 3.565 | 10,3% |
-| < 0,60 | BAIXA | 1.060 | 3,1% |
-
-Confiança média por label:
-
-| Label | Confiança média |
+| Arquivo | Descrição |
 |---|---|
-| NEGATIVO | 0,943 |
-| POSITIVO | 0,928 |
-| TANGENCIAL | 0,896 |
-
-NEGATIVO tem confiança mais alta — comentários negativos possuem características
-linguísticas mais distintas, tornando-os mais fáceis de identificar pelo modelo.
+| `data/processed/final_dataset.csv` | Dataset final — 16.719 comentários da 2ª metade |
 
 ---
 
-## 7. Dataset final
+## 7. Script 08 — Confiança Percebida (heurística)
 
-**Arquivo:** `data/processed/all_labeled_comments.csv`
+**Arquivo:** `scripts/08_credibility_heuristic.py`
+
+### O que faz
+
+Extrai a métrica `confianca_percebida` para cada comentário da base final,
+aplicando heurística de palavras-chave com tratamento de negação e
+desambiguação via `label_xgb`. Aplica-se às três classes de sentimento:
+POSITIVO, TANGENCIAL e NEGATIVO.
+
+### Lógica de classificação
+
+```
+Para cada comentário:
+  1. Busca termos de ALTA credibilidade em text_clean
+  2. Verifica negação (janela de 3 palavras antes do termo)
+     → termo negado → tratado como sinal de BAIXA
+  3. Busca termos de BAIXA credibilidade
+  4. Determina keyword_signal:
+       só ALTA encontrada → ALTA
+       só BAIXA encontrada → BAIXA
+       ambas encontradas → CONFLITO
+       nenhuma → NEUTRA
+  5. Resolve CONFLITO via label_xgb:
+       POSITIVO   → ALTA
+       NEGATIVO   → BAIXA
+       TANGENCIAL → NEUTRA
+```
+
+### Termos utilizados
+
+**ALTA credibilidade:**
+```
+"explicou", "explicação", "faz sentido", "confio", "confiança",
+"científico", "embasado", "comprovado", "especialista", "referência",
+"pesquisa", "estudo", "evidência", "recomendo", "recomenda",
+"correto", "verdade", "confiável", "fundamentado", "comprovou",
+"funciona", "ajudou", "esclareceu", "ficou claro", "bem explicado",
+"informação clara", "informação correta"
+```
+
+**BAIXA credibilidade:**
+```
+"errado", "equivocado", "pseudociência", "desinformação", "charlatão",
+"sem base", "enganação", "falso", "mentira", "perigoso", "irresponsável",
+"absurdo", "ridículo", "não funciona", "não confio", "não ajuda",
+"não faz sentido", "não é verdade", "não é correto", "lixo", "besteira"
+```
+
+### Decisões técnicas
+
+| Decisão | Escolha | Justificativa |
+|---|---|---|
+| Classes incluídas | POSITIVO, TANGENCIAL, NEGATIVO | Todas as três contêm sinais de credibilidade |
+| Negação | Janela de 3 palavras antes do termo | Cobre a maioria dos casos em português sem NLP avançado |
+| Conflito | Desambiguado via `label_xgb` | O sentimento já classificado contextualiza o sinal ambíguo |
+| Limitação | Heurística insensível a contexto | Resultados indicativos — documentar no TCC |
+
+### Arquivos gerados
+
+| Arquivo | Descrição |
+|---|---|
+| `data/processed/final_dataset.csv` | Base completa + `confianca_percebida` — dataset de análise |
+| `data/processed/final_dataset_audit.csv` | + `keyword_signal`, `keywords_alta`, `keywords_baixa`, `conflito` |
+
+---
+
+## 8. Dataset final
+
+**Arquivo:** `data/processed/final_dataset.csv` (gerado pelo script 08)
+
+> O arquivo intermediário `final_labeled_dataset.csv` (gerado pelo script 07)
+> contém os mesmos dados sem a coluna `confianca_percebida`.
+
+Contém exclusivamente os **16.719 comentários da 2ª metade** — aqueles que o
+XGBoost nunca viu durante o treinamento. Os rótulos XGBoost são predições
+genuínas, não memorização.
 
 ### Estrutura
 
@@ -416,171 +488,183 @@ linguísticas mais distintas, tornando-os mais fáceis de identificar pelo model
 |---|---|
 | `commentId` | ID único do comentário |
 | `text` | Texto original |
-| `text_clean` | Texto limpo (URLs removidas, emojis convertidos) |
+| `text_clean` | Texto tratado (URLs removidas, emojis convertidos) |
 | `channel_type` | `"profissional"` ou `"amador"` |
 | `likeCount` | Número de curtidas |
 | `video_title` | Título do vídeo |
-| `label` | Rótulo LLM: POSITIVO / NEGATIVO / TANGENCIAL / DESCARTAVEL |
-| `confidence` | Confiança XGBoost (0,0–1,0); `None` para DESCARTAVEL |
+| `label_llm` | Rótulo atribuído pelo LLM (referência) |
+| `label_xgb` | Rótulo predito pelo XGBoost (predição genuína) |
+| `confidence` | Probabilidade máxima do XGBoost (0,0–1,0) |
+| `intensidade` | ALTA (>0,80) / MEDIA (0,60–0,80) / BAIXA (<0,60) |
+| `concorda` | `True` se label_llm == label_xgb |
+| `keywords` | Termos de confiabilidade encontrados em text_clean — lista básica do script 07 |
+| `confianca_percebida` | ALTA / BAIXA / NEUTRA — heurística com negação e desambiguação (script 08) |
 
-### Distribuição
+### Distribuição (label_xgb — predição genuína do XGBoost)
 
 | Label | Contagem | % |
 |---|---|---|
-| POSITIVO | 18.253 | 43,1% |
-| TANGENCIAL | 14.455 | 34,1% |
-| DESCARTAVEL | 7.881 | 18,6% |
-| NEGATIVO | 1.783 | 4,2% |
-| **Total** | **42.372** | — |
+| POSITIVO | 9.321 | 55,8% |
+| TANGENCIAL | 6.314 | 37,8% |
+| NEGATIVO | 1.084 | 6,5% |
+| **Total** | **16.719** | — |
 
-| Canal | Contagem | % |
+> Nota: DESCARTAVEL não consta pois o XGBoost foi treinado apenas nas 3 classes
+> de sentimento. Os DESCARTAVEL da 2ª metade foram excluídos pelo script 05
+> (não geraram embeddings) e portanto não aparecem no dataset final.
+
+---
+
+## 9. Script 09 — Análise de Resultados
+
+**Arquivo:** `scripts/09_analyze_results.py`
+
+### O que faz
+
+Lê `final_dataset.csv` e responde as 6 perguntas de pesquisa do TCC, gerando
+um arquivo CSV por análise em `data/processed/results/`. Cada arquivo contém
+duas visões — percentual e valor absoluto — identificadas pela coluna `visao`.
+Um arquivo consolidado (`estatisticas.csv`) reúne todos os testes estatísticos.
+
+### Perguntas respondidas
+
+| # | Pergunta | Filtro aplicado | Coluna analisada |
+|---|---|---|---|
+| P1 | Comentários mais engajados expressam sentimentos diferentes entre os grupos? | `likeCount >= 10` | `label_xgb` |
+| P2 | Conteúdos de profissionais geram maior proporção de comentários positivos? | base completa | `label_xgb` |
+| P3 | A intensidade emocional difere entre profissionais e amadores? | `label_xgb` IN (POSITIVO, NEGATIVO) | `intensidade` |
+| P4 | Conteúdos de profissionais apresentam mais indícios de confiabilidade percebida? | `confianca_percebida` IN (ALTA, BAIXA) | `confianca_percebida` |
+| P5 | Como se compara a categorização da LLM com a do XGBoost? | base completa | `label_llm` × `label_xgb` |
+| P6 | Conteúdos de profissionais geram mais relatos pessoais (TANGENCIAL)? | base completa | `label_xgb` |
+
+> P2 e P6 compartilham o mesmo CSV pois usam a mesma base e mesma estrutura de tabela.
+
+### Decisões técnicas
+
+| Decisão | Escolha | Justificativa |
 |---|---|---|
-| Profissional | 21.351 | 50,4% |
-| Amador | 21.021 | 49,6% |
+| Testes estatísticos | Chi-quadrado (P1–P4, P6) e Cohen's Kappa (P5) | Chi² compara proporções entre grupos; Kappa mede concordância corrigida por acaso |
+| Denominador dos percentuais | Total do grupo no contexto do filtro aplicado | Garante que percentuais somem 100% dentro de cada grupo |
+| Filtro P3 | Exclui TANGENCIAL | Intensidade emocional só é interpretável para sentimentos diretos (positivo/negativo) |
+| Filtro P4 | Exclui NEUTRA | A análise foca nos comentários com sinal claro de credibilidade — NEUTRA não discrimina |
+| Threshold P1 | `likeCount >= 10` | Equilibra tamanho de amostra (323 profissional / 356 amador) e representatividade de engajamento |
+| P3 — estrutura | 4 tabelas (profissional × amador × percentual × absoluto) | Cada grupo tem seu próprio arquivo; colunas: Total / Positivo / Negativo |
 
----
+### Arquivos gerados
 
-IMPORTANTE!!!
-VALE REVISAR (em especial a respeito de qual base utilizar:
-all_labeled_comments x second_half_predictions):
-## 8. Próximos passos
-
-### Análise comparativa (script 08 — não implementado)
-
-> O script 08 não foi implementado neste repositório. A análise pode ser
-> conduzida diretamente em um Jupyter Notebook ou ferramenta de visualização
-> a partir do `all_labeled_comments.csv`, que já contém todas as colunas
-> necessárias.
-
-A análise deve responder as 4 perguntas de pesquisa do TCC:
-
----
-
-#### Pergunta 1 — Os comentários mais engajados expressam sentimentos diferentes entre profissionais e amadores?
-
-**Base:** `all_labeled_comments.csv`, filtrado por `likeCount > 50`
-
-**Método:**
-```python
-high_like = df[df["likeCount"] > 50]
-high_like.groupby("channel_type")["label"].value_counts(normalize=True)
-```
-
-**Visualização:** gráfico de barras agrupadas (profissional × amador), apenas
-comentários com likes > 50, excluindo DESCARTAVEL.
-
----
-
-#### Pergunta 2 — Conteúdos de profissionais geram maior proporção de comentários positivos?
-
-**Base:** `all_labeled_comments.csv`, excluindo DESCARTAVEL
-
-**Método:**
-```python
-sent = df[df["label"] != "DESCARTAVEL"]
-sent.groupby("channel_type")["label"].value_counts(normalize=True)
-```
-
-**Teste estatístico sugerido:** qui-quadrado (χ²) para verificar se a diferença
-entre proporções é estatisticamente significativa.
-
-**Visualização:** gráfico de barras empilhadas (proporção de cada label por grupo).
-
----
-
-#### Pergunta 3 — A intensidade emocional difere entre profissionais e amadores?
-
-**Base:** `all_labeled_comments.csv`, coluna `confidence` (apenas não-DESCARTAVEL)
-
-**Método:**
-```python
-sent = df[df["label"] != "DESCARTAVEL"]
-sent.groupby("channel_type")["confidence"].describe()
-```
-
-Calcular a proporção de comentários de intensidade ALTA/MÉDIA/BAIXA por grupo:
-```python
-def intensidade(c):
-    if c > 0.80:  return "ALTA"
-    if c >= 0.60: return "MEDIA"
-    return "BAIXA"
-
-sent["intensidade"] = sent["confidence"].apply(intensidade)
-sent.groupby(["channel_type", "intensidade"]).size()
-```
-
-**Teste estatístico sugerido:** Mann-Whitney U (comparação de medianas de
-distribuições não-normais).
-
-**Visualizações:** boxplot de `confidence` por `channel_type` e por `label`;
-gráfico de barras da distribuição de intensidade por grupo.
-
----
-
-#### Pergunta 4 — Conteúdos de profissionais apresentam mais indícios de confiabilidade percebida?
-
-**Base:** `all_labeled_comments.csv`, coluna `text_clean`, apenas POSITIVO
-
-**Método — heurística de palavras-chave:**
-
-Buscar termos associados a confiabilidade percebida e calcular a taxa de
-ocorrência por grupo.
-
-```python
-TERMOS_CONFIABILIDADE = [
-    "explicou", "explicação", "faz sentido", "confio", "confiança",
-    "científico", "embasado", "comprovado", "especialista", "referência",
-    "pesquisa", "estudo", "dados", "evidência", "profissional",
-    "recomendo", "recomenda", "seguro", "correto", "verdade"
-]
-
-pos = df[df["label"] == "POSITIVO"].copy()
-pos["tem_confiabilidade"] = pos["text_clean"].str.lower().apply(
-    lambda t: any(term in t for term in TERMOS_CONFIABILIDADE)
-)
-pos.groupby("channel_type")["tem_confiabilidade"].mean()
-```
-
-> **Limitação conhecida:** heurística baseada em palavras-chave é sensível à
-> escolha dos termos e não captura contexto. Os resultados devem ser
-> interpretados como indicativos, não conclusivos.
-
-**Visualização:** gráfico de barras com proporção de comentários com
-indicadores de confiabilidade por grupo.
-
----
-
-#### Visualizações adicionais recomendadas
-
-- **WordCloud** por `channel_type` × `label`: termos mais frequentes em
-  comentários positivos de profissionais vs. amadores
-- **Distribuição de likeCount** por label e channel_type (escala log)
-- **Tabela resumo final** com todas as métricas lado a lado:
-  profissional vs. amador em proporção de sentimentos, intensidade média
-  e taxa de confiabilidade percebida
-
----
-
-### Revisão humana (pendente)
-
-Os 600 comentários amostrados (`para_revisao_arthur.csv` e `para_revisao_ana.csv`)
-devem ser revisados manualmente. Após a revisão, calcular o **Cohen's Kappa**
-entre LLM e revisores para validar a qualidade da rotulação:
-
-```python
-from sklearn.metrics import cohen_kappa_score
-kappa = cohen_kappa_score(df["label_llm"], df["label_revisao"])
-```
-
-Interpretação do Kappa:
-
-| Faixa | Interpretação |
+| Arquivo | Conteúdo |
 |---|---|
-| > 0,80 | Concordância quase perfeita |
-| 0,60 – 0,80 | Concordância substancial |
-| 0,40 – 0,60 | Concordância moderada |
-| < 0,40 | Concordância fraca |
+| `p1_engajamento.csv` | Sentimentos (POSITIVO / NEGATIVO / TANGENCIAL) em comentários com likeCount ≥ 10 |
+| `p2_p6_sentimentos_base.csv` | Distribuição de todos os rótulos na base completa por grupo |
+| `p3_intensidade_profissional.csv` | Intensidade emocional — canais profissionais (Total / Positivo / Negativo) |
+| `p3_intensidade_amador.csv` | Intensidade emocional — canais amadores (Total / Positivo / Negativo) |
+| `p4_confianca.csv` | Confiança percebida ALTA e BAIXA por grupo |
+| `p5_concorda.csv` | Concordância geral LLM vs XGBoost (True / False) |
+| `p5_matriz_confusao.csv` | Matriz de confusão 3×3 (LLM nas linhas, XGBoost nas colunas) |
+| `p5_kappa.csv` | Cohen's Kappa e interpretação |
+| `estatisticas.csv` | Todos os testes estatísticos consolidados |
+
+### Resultados obtidos
+
+#### P1 — Comentários engajados (likeCount ≥ 10)
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| Positivo | 34,67% (112) | 36,52% (130) |
+| Negativo | 5,57% (18) | 3,65% (13) |
+| Tangencial | 59,75% (193) | 59,83% (213) |
+
+**Chi² = 1,53, p = 0,4653 — Não significativa.** A distribuição de sentimentos
+em comentários engajados é estatisticamente semelhante entre os dois grupos.
 
 ---
 
-*Documento atualizado em 01/05/2026. Scripts em `scripts/`. Dados em `data/processed/`.*
+#### P2 — Proporção de positivos na base completa
+
+| Rótulo | Profissional | Amador |
+|---|---|---|
+| Positivo | 33,43% (2.296) | 67,37% (6.637) |
+| Negativo | 4,86% (334) | 1,71% (168) |
+| Tangencial | 61,71% (4.238) | 30,92% (3.046) |
+
+**Chi² = 1.887,33, p ≈ 0 — Significativa.** Canais amadores geram proporção
+muito maior de comentários positivos; canais profissionais concentram
+comentários tangenciais (relatos pessoais e referências ao tema).
+
+---
+
+#### P3 — Intensidade emocional
+
+**Canais profissionais** (n=2.630 | pos=2.296 | neg=334):
+
+| Intensidade | Total | Positivo | Negativo |
+|---|---|---|---|
+| Alta | 73,95% | 80,62% | 28,14% |
+| Média | 16,08% | 12,85% | 38,32% |
+| Baixa | 9,96% | 6,53% | 33,53% |
+
+**Canais amadores** (n=6.805 | pos=6.637 | neg=168):
+
+| Intensidade | Total | Positivo | Negativo |
+|---|---|---|---|
+| Alta | 84,10% | 85,61% | 24,40% |
+| Média | 10,29% | 9,45% | 43,45% |
+| Baixa | 5,61% | 4,94% | 32,14% |
+
+**Chi² = 130,13, p ≈ 0 — Significativa.** Canais amadores têm maior proporção
+de comentários de alta intensidade. Em ambos os grupos, comentários negativos
+distribuem-se de forma mais equilibrada entre as três faixas de intensidade.
+
+---
+
+#### P4 — Confiança percebida (ALTA / BAIXA)
+
+| Confiança | Profissional | Amador |
+|---|---|---|
+| Alta | 62,24% (455) | 75,69% (439) |
+| Baixa | 37,76% (276) | 24,31% (141) |
+
+**Chi² = 26,34, p ≈ 0 — Significativa.** Canais amadores apresentam maior
+proporção de comentários com sinais de alta confiança percebida. Nota: 92%
+da base é NEUTRA — os percentuais acima se referem apenas aos 1.311
+comentários com sinal explícito de credibilidade.
+
+---
+
+#### P5 — Concordância LLM vs XGBoost
+
+**Concordância geral:** 14.178 / 16.719 comentários **(84,8%)**
+
+**Matriz de confusão** (linhas = LLM, colunas = XGBoost):
+
+|  | POSITIVO | TANGENCIAL | NEGATIVO |
+|---|---|---|---|
+| **POSITIVO** | 8.320 | 942 | 59 |
+| **TANGENCIAL** | 523 | 5.603 | 188 |
+| **NEGATIVO** | 90 | 739 | 255 |
+
+Principal padrão de discordância: XGBoost classifica como TANGENCIAL
+739 dos 1.084 comentários que a LLM rotulou como NEGATIVO (recall de 24%
+para NEGATIVO — já documentado no script 06b).
+
+**Cohen's Kappa = 0,7163 — Concordância Substancial (0,60–0,80).**
+A concordância real supera substancialmente o que seria esperado por acaso,
+validando o uso do XGBoost como classificador complementar à LLM.
+
+---
+
+#### P6 — Comentários TANGENCIAIS por grupo
+
+Coberto pelo mesmo CSV de P2. Profissional: 61,71% (4.238) vs Amador: 30,92% (3.046).
+Diferença altamente significativa — discutida junto a P2.
+
+---
+
+## 10. Próximos passos
+
+A análise quantitativa está concluída. Os resultados em `data/processed/results/`
+estão prontos para uso na escrita do TCC.
+
+---
+
+*Documento atualizado em 02/05/2026. Scripts em [scripts/](scripts/). Dados em [data/processed/](data/processed/).*

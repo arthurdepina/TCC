@@ -19,7 +19,10 @@
       "Bash(python -c ' *)",
       "Bash(PYTHONIOENCODING=utf-8 python scripts/04_sample_for_review.py)",
       "Bash(python -c \"import pandas as pd; df = pd.read_csv\\('c:/Users/arthu/Documents/GitHub/TCC/data/processed/preprocessed_comments.csv', nrows=2\\); print\\(df.columns.tolist\\(\\)\\)\")",
-      "Bash(echo \"PID: $!\")"
+      "Bash(echo \"PID: $!\")",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ]
   }
 }
